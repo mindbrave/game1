@@ -43,3 +43,5 @@ const wsadStateToWsadDirection = (wsadState: WSADState): WSADDirection => ({
     x: (wsadState.a && wsadState.d) || (!wsadState.a && !wsadState.d) ? 0 : wsadState.a ? -1 : 1,
     y: (wsadState.w && wsadState.s) || (!wsadState.w && !wsadState.s) ? 0 : wsadState.s ? -1 : 1,
 });
+
+export const onClick = 

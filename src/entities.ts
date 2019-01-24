@@ -4,7 +4,7 @@ import { assoc, curry } from "ramda";
 
 export type EntityId = number;
 
-export type Entity<T> = {id: EntityId} & T;
+export type Entity<T> = {id?: EntityId} & T;
 
 export type Entities<T> = Map<EntityId, Entity<T>>;
 

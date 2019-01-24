@@ -7,7 +7,7 @@ import { Map } from "immutable";
 import {
     Body, Meters, MetersPerSquaredSecond, Seconds, MetersPerSecond, move, applyFriction, Kilograms, ShapeType
 } from "./physics";
-import { Vec } from "./vectors";
+import { Vec, normalizeVector, subtractVectors, scaleVector } from "./vectors";
 import { orderToNotMove, orderToGoIntoDirection, updateBodyMovingBehavior, MovementBehavior } from "./movingBehavior";
 import { EntityId, Entities, Entity, mergeEntitiesWithPropMap } from "./entities";
 import { moveWithCollisions, BodyId } from "./collisions";
@@ -22,12 +22,23 @@ export interface Physical {
 }
 
 export interface Game {
+    currentEntityId: EntityId,
     selectedCharacterId: EntityId;
     entities: Entities<WithBehavior & Physical>;
 }
 
-const createCharacter = (id: EntityId, position: Vec<Meters>): Entity<Physical & WithBehavior> => ({
-    id,
+export const addEntity = (entity: Entity<WithBehavior & Physical>, game: Game): Game => ({
+    ...game,
+    currentEntityId: nextEntityId(game.currentEntityId),
+    entities: game.entities.set(nextEntityId(game.currentEntityId), {
+        ...entity,
+        id: nextEntityId(game.currentEntityId),
+    })
+});
+
+const nextEntityId = (entityId: EntityId): EntityId => entityId + 1;
+
+const createCharacter = (position: Vec<Meters>): Entity<Physical & WithBehavior> => ({
     body: {
         position,
         velocity: {
@@ -50,41 +61,32 @@ const createCharacter = (id: EntityId, position: Vec<Meters>): Entity<Physical &
 })
 
 export const startGame = (): Game => {
-    let entities = Map<EntityId, Entity<WithBehavior & Physical>>();
-    entities = entities.set(1, createCharacter(1, {
+    let game = {
+        currentEntityId: 0,
+        selectedCharacterId: 1,
+        entities: Map<EntityId, Entity<WithBehavior & Physical>>(),
+    };
+    game = addEntity(createCharacter({
         x: 0 as Meters,
         y: 1.0 as Meters,
         z: 0 as Meters,
-    }));
-    entities = entities.set(2, createCharacter(2, {
+    }), game);
+    game = addEntity(createCharacter({
         x: 2 as Meters,
         y: 1.0 as Meters,
         z: 0 as Meters,
-    }));
-    entities = entities.set(3, createCharacter(3, {
+    }), game);
+    game = addEntity(createCharacter({
         x: 4 as Meters,
         y: 1.0 as Meters,
         z: 0 as Meters,
-    }));
-    entities = entities.set(4, createCharacter(4, {
+    }), game);
+    game = addEntity(createCharacter({
         x: 6 as Meters,
         y: 1.0 as Meters,
         z: 0 as Meters,
-    }));
-    entities = entities.set(5, createCharacter(5, {
-        x: 8 as Meters,
-        y: 1.0 as Meters,
-        z: 0 as Meters,
-    }));
-    entities = entities.set(6, createCharacter(6, {
-        x: 8 as Meters,
-        y: 1.0 as Meters,
-        z: 2 as Meters,
-    }));
-    return {
-        selectedCharacterId: 1,
-        entities
-    };
+    }), game);
+    return game;
 };
 
 export const updateGame = curry((delta: Seconds, game: Game): Game => pipeR(game, updateMovingBehavior(delta), updatePhysics(delta)));
@@ -126,3 +128,25 @@ export const orderCharacterToStop = (game: Game): Game => ({
     ...game,
     entities: game.entities.update(game.selectedCharacterId, evolve({movementBehavior: orderToNotMove})),
 });
+
+export const shootBallWithSelectedCharacter = (targetPosition: Vec<Meters>, game: Game): Game => {
+    const selectedEntityPosition = game.entities.get(game.selectedCharacterId)!.body.position;
+    const shootDirection = normalizeVector(subtractVectors(targetPosition, selectedEntityPosition));
+    return addEntity({
+        body: {
+            position: selectedEntityPosition,
+            velocity: scaleVector(15.0 as MetersPerSecond, shootDirection),
+            friction: 0.0 as MetersPerSquaredSecond,
+            mass: 1.0 as Kilograms,
+            shape: {
+                type: ShapeType.Circle,
+                radius: 0.2 as Meters,
+            }
+        },
+        movementBehavior: {
+            acceleration: 0.0 as MetersPerSquaredSecond,
+            maxVelocity: 15.0 as MetersPerSecond,
+            direction: shootDirection,
+        }
+    }, game)
+};
