@@ -2,7 +2,7 @@
 import { curry } from "ramda";
 import { Unit, Scalar, mul } from "uom-ts";
 
-import { Vec, addVectors, scaleVector, normalizeVector, clampVector, subtractVectors, divideVector, vectorMagnitude } from "./vectors";
+import { Vec, addVectors, scaleVector, normalizeVector, clampVector, subtractVectors, divideVector, vectorMagnitude, vec } from "./vectors";
 
 export type Meters = Unit<{m: 1}>;
 export type SquaredMeters = Unit<{m: 2}>;

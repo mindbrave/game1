@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "webpack-dev-server --open",
-    "test": "jest src/**/*.test.ts"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",

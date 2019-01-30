@@ -1,11 +1,11 @@
 
-import { flatten, equals } from "remeda";
-import { prop, sortBy, head, isEmpty, curry } from "ramda";
+import { prop, sortBy, head, isEmpty, curry, equals } from "ramda";
 
 import { Body, Seconds, MetersPerSecond, Meters, SquaredMeters, move, Circle, Shape, ShapeType } from "./physics";
 import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, normalizeVector, dotProduct, isZeroVector } from "./vectors";
 import { add, sub, lt, pow2, lte, gte, sqrt2, div, mul, Scalar } from "uom-ts";
 import { Map } from "immutable";
+import { everyDistinctPairInArray } from "./distinctPairsFromArray";
 
 export type BodyId = number;
 type TimeToImpact = Seconds;
@@ -36,10 +36,6 @@ export const findIncomingCollisions = (duration: Seconds, bodiesMap: Map<BodyId,
     })).filter((incomingCollision): incomingCollision is IncomingCollision => incomingCollision.timeToImpact !== null)
 );
 
-const everyDistinctPairInArray = <T>(array: T[]): [T, T][] => flatten(
-    array.map((element1, index) => array.slice(index).map(element2 => [element1, element2] as [T, T]))
-);
-
 const incomingCollisionBetween = (body1: Body, body2: Body, duration: Seconds): TimeToImpact | null => (
     isCircle(body1) ? (
         isCircle(body2) ? incomingCollisionBetweenCircles(body1, body2, duration) : null
@@ -53,6 +49,9 @@ const isCircle = (body: Body): body is Body<Circle> => equals(body.shape.type, S
  */
 const incomingCollisionBetweenCircles = (body1: Body<Circle>, body2: Body<Circle>, duration: Seconds): TimeToImpact | null => {
     const [movingBody, staticBody] = considerSecondBodyStationary(body1, body2);
+    if (isZeroVector(movingBody.velocity)) {
+        return null;
+    }
     const radiusSum = add(movingBody.shape.radius, staticBody.shape.radius);
     const towardsVector = subtractVectors(staticBody.position, movingBody.position);
     const distanceBetweenEntities = sub(vectorMagnitude(towardsVector), radiusSum);
@@ -81,9 +80,9 @@ const incomingCollisionBetweenCircles = (body1: Body<Circle>, body2: Body<Circle
     if (lt(translationDistance, distanceTillCollision)) {
         return null;
     }
-    const x = div(distanceTillCollision, translationDistance);
-    const realDistanceTillCollisionFromBody1 = mul(vectorMagnitude(scaleVector(duration, body1.velocity)), x);
-    const realDistanceTillCollisionFromBody2 = mul(vectorMagnitude(scaleVector(duration, body2.velocity)), x);
+    const X = div(distanceTillCollision, translationDistance);
+    const realDistanceTillCollisionFromBody1 = mul(vectorMagnitude(scaleVector(duration, body1.velocity)), X);
+    const realDistanceTillCollisionFromBody2 = mul(vectorMagnitude(scaleVector(duration, body2.velocity)), X);
     const timeToImpact = !isZeroVector(body1.velocity) ?
         div(realDistanceTillCollisionFromBody1, vectorMagnitude(body1.velocity)) :
         div(realDistanceTillCollisionFromBody2, vectorMagnitude(body2.velocity));
