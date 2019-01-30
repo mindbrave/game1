@@ -17,7 +17,7 @@ type WSADStateChange = {
     [key:string]: boolean;
 };
 
-export const keyDown$ = fromEvent<KeyboardEvent>(window, "keyup");
+export const keyDown$ = fromEvent<KeyboardEvent>(window, "keydown");
 export const keyUp$ = fromEvent<KeyboardEvent>(window, "keyup");
 
 export const onKeyDown = (key: string): Observable<KeyboardEvent> => keyDown$.pipe(filter(isKey(key)));
