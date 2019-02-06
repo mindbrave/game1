@@ -6,34 +6,32 @@ import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, norm
 import { add, sub, lt, pow2, lte, gte, sqrt2, div, mul, Scalar } from "uom-ts";
 import { Map } from "immutable";
 import { everyDistinctPairInArray } from "./distinctPairsFromArray";
+import { Maybe } from "./nullable";
 
 export type BodyId = number;
 type TimeToImpact = Seconds;
 
-export interface IncomingCollision {
+export interface Collision {
     timeToImpact: Seconds;
-    between: [[BodyId, Body], [BodyId, Body]],
+    between: [BodyId, BodyId],
 }
 
-export const moveWithCollisions = curry((duration: Seconds, bodiesMap: Map<BodyId, Body>): Map<BodyId, Body> => {
+export const moveUntilFirstCollision = curry((duration: Seconds, bodiesMap: Map<BodyId, Body>): [Map<BodyId, Body>, Maybe<Collision>] => {
     const incomingCollisions = findIncomingCollisions(duration, bodiesMap);
     if (isEmpty(incomingCollisions)) {
-        return bodiesMap.map(move(duration));
+        return [bodiesMap.map(move(duration)), null];
     }
-    const earliestCollision = head(sortBy<IncomingCollision>(prop('timeToImpact'), incomingCollisions))!;
+    const earliestCollision = head(sortBy<Collision>(prop('timeToImpact'), incomingCollisions))!;
     let movedBodiesMap = bodiesMap.map(move(earliestCollision.timeToImpact));
-    const [[bodyId1, body1], [bodyId2, body2]] = resolveCollision(earliestCollision);
-    movedBodiesMap = movedBodiesMap.update(bodyId1, body => ({...body, velocity: body1.velocity}));
-    movedBodiesMap = movedBodiesMap.update(bodyId2, body => ({...body, velocity: body2.velocity}));
 
-    return moveWithCollisions(sub(duration, earliestCollision.timeToImpact), movedBodiesMap);
+    return [movedBodiesMap, earliestCollision];
 });
 
-export const findIncomingCollisions = (duration: Seconds, bodiesMap: Map<BodyId, Body>): IncomingCollision[] => (
+export const findIncomingCollisions = (duration: Seconds, bodiesMap: Map<BodyId, Body>): Collision[] => (
     everyDistinctPairInArray(bodiesMap.toArray()).map(([[bodyId1, body1], [bodyId2, body2]]) => ({
         timeToImpact: incomingCollisionBetween(body1, body2, duration),
-        between: [[bodyId1, body1], [bodyId2, body2]],
-    })).filter((incomingCollision): incomingCollision is IncomingCollision => incomingCollision.timeToImpact !== null)
+        between: [bodyId1, bodyId2],
+    })).filter((incomingCollision): incomingCollision is Collision => incomingCollision.timeToImpact !== null)
 );
 
 const incomingCollisionBetween = (body1: Body, body2: Body, duration: Seconds): TimeToImpact | null => (
@@ -106,16 +104,7 @@ const considerSecondBodyStationary = <A extends Shape, B extends Shape>(body1: B
     ];
 };
 
-const resolveCollision = (collision: IncomingCollision): [[BodyId, Body], [BodyId, Body]] => {
-    const [body1Id, body1] = collision.between[0];
-    const [body2Id, body2] = collision.between[1];
-    return [
-        [body1Id, circleBounceOfCircle(body1 as Body<Circle>, body2 as Body<Circle>)],
-        [body2Id, circleBounceOfCircle(body2 as Body<Circle>, body1 as Body<Circle>)],
-    ];
-};
-
-const circleBounceOfCircle = (body1: Body<Circle>, body2: Body<Circle>): Body<Circle> => {
+export const circleBounceOfCircle = curry((body1: Body<Circle>, body2: Body<Circle>): Body<Circle> => {
     const normalizedVectorBetween = normalizeVector(subtractVectors(body2.position, body1.position));
     const a1 = dotProduct(body1.velocity, normalizedVectorBetween);
     const a2 = dotProduct(body2.velocity, normalizedVectorBetween);
@@ -126,4 +115,4 @@ const circleBounceOfCircle = (body1: Body<Circle>, body2: Body<Circle>): Body<Ci
         ...body1,
         velocity: newVelocity,
     };
-};
+});

@@ -1,10 +1,10 @@
 
 import { createCharacter } from "./character";
-import { Meters } from "../gamda/physics";
+import { Meters } from "./gamda/physics";
 import { Soccer } from "./soccer";
-import { GameEvents } from "../gamda/game";
-import { addEntity } from "../gamda/entities";
-import { EntityAdded } from "../main";
+import { GameEvents } from "./gamda/game";
+import { addEntity, EntityAdded } from "./gamda/entities";
+import { runRenderLoop } from "./view";
 
 export const startGame = (game: Soccer): [Soccer, GameEvents] => {
     let entities, entity;
@@ -45,10 +45,10 @@ export const startGame = (game: Soccer): [Soccer, GameEvents] => {
         type: "EntityAdded",
         entityId: entity.id,
     }]);
-    console.log(entities);
     return [
         {
             ...game,
+            view: runRenderLoop(game.view),
             entities,
         },
         events

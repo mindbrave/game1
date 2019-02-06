@@ -4,6 +4,7 @@ import { assoc, curry } from "ramda";
 
 import { MovementBehavior } from "./movingBehavior";
 import { Body } from "./physics";
+import { GameEvent } from "./game";
 
 export type EntityId = number;
 
@@ -33,6 +34,10 @@ export const mergeEntitiesWithPropMap = curry((prop: string, entities: Entities,
     ),
 }));
 
+export const propMapFromEntities = curry(<T extends keyof Traits> (prop: T, entities: Entities): Map<EntityId, Traits[T]> => (
+    Map(entities.map.toArray().map(([id, entity]) => [id, entity[prop]] as [EntityId, Traits[T]]))
+));
+
 export const addEntity = <T extends Traits>(entity: T, entities: Entities): [Entities, Entity<T>] => ([
     {
         ...entities,
@@ -47,6 +52,13 @@ export const addEntity = <T extends Traits>(entity: T, entities: Entities): [Ent
         id: nextEntityId(entities.lastEntityId),
     }
 ]);
+
+export const ENTITY_ADDED = "EntityAdded";
+
+export interface EntityAdded extends GameEvent {
+    type: "EntityAdded";
+    entityId: EntityId;
+}
 
 export const getEntity = (entityId: EntityId, entities: Entities): Entity<Traits> | undefined => entities.map.get(entityId);
 export const setEntity = (entity: Entity<Traits>, entities: Entities): Entities => ({

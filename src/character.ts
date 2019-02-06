@@ -1,9 +1,9 @@
 
 import { Scalar } from "uom-ts";
 
-import { Vec, vec } from "../gamda/vectors";
-import { Meters, MetersPerSecond, MetersPerSquaredSecond, ShapeType, Kilograms } from "../gamda/physics";
-import { Physical, WithBehavior } from "../gamda/entities";
+import { Vec, vec } from "./gamda/vectors";
+import { Meters, MetersPerSecond, MetersPerSquaredSecond, ShapeType, Kilograms } from "./gamda/physics";
+import { Physical, WithBehavior } from "./gamda/entities";
 
 export type Character = Physical & WithBehavior;
 

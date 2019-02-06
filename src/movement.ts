@@ -1,12 +1,12 @@
 import { curry, evolve } from "ramda";
 import { Scalar } from "uom-ts";
 
-import { Vec } from "../gamda/vectors";
-import { orderToGoIntoDirection, orderToNotMove, updateBodyMovingBehavior } from "../gamda/movingBehavior";
-import { Seconds } from "../gamda/physics";
+import { Vec } from "./gamda/vectors";
+import { orderToGoIntoDirection, orderToNotMove, updateBodyMovingBehavior } from "./gamda/movingBehavior";
+import { Seconds } from "./gamda/physics";
 import { Soccer } from "./soccer";
-import { GameEvents } from "../gamda/game";
-import { updateEntity, mapEntities } from "../gamda/entities";
+import { GameEvents } from "./gamda/game";
+import { updateEntity, mapEntities } from "./gamda/entities";
 
 export const orderCharacterToMoveInDirection = curry((direction: Vec<Scalar>, game: Soccer): [Soccer, GameEvents] => [{
     ...game,

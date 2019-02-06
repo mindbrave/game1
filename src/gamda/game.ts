@@ -16,3 +16,5 @@ export const game = <T>(commands$: Observable<GameCommand<T>>, events$: Subject<
 };
 
 export const gameEvents = () => new Subject<GameEvent>();
+
+export const isEventOfType = <T extends GameEvent, S extends T>(type: string) => (event: T): event is S => event.type === type;
