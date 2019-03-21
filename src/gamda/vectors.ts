@@ -15,6 +15,7 @@ export type Radians = Unit<{rad: 1}>;
 export type DirectionVector = Vec;
 
 export const vec = (x: number, y: number, z: number) => ({x, y, z});
+export const zeroVector = vec(0, 0, 0);
 
 export const addVectors = <T extends AnyUnit>(v1: Vec<T>, v2: Vec<T>): Vec<T> => ({
     x: add(v1.x, v2.x),

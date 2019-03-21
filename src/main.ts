@@ -1,47 +1,42 @@
 
 import { merge, Observable, of } from "rxjs";
-import { complement, unary } from "ramda";
 import { map, tap, filter, mapTo } from "rxjs/operators";
-import { Scalar } from "uom-ts";
 
 import { ticks, TicksPerSecond } from "./gamda/ticks";
-import { Vec, normalizeVector, isZeroVector } from "./gamda/vectors";
-import { addEntityView, updateEntitiesMeshPositions } from "./view";
-import { wsad, WSADDirection, onKeyDown } from "./gamda/input";
-import { game, gameEvents, GameCommand, GameEvents, GameEvent, isEventOfType } from "./gamda/game";
-import { initialGameState, Soccer, updateGame } from "./soccer";
-import { orderCharacterToStop, orderCharacterToMoveInDirection } from "./movement";
+import { isZeroVector, isNotZeroVector } from "./gamda/vectors";
+import { updateEntitiesMeshPositions, addEntityView } from "./view";
+import { wsad, onKeyDown, wsadDirectionToVec } from "./gamda/input";
+import { game, gameEvents, GameCommand, GameEvents, GameEvent, isEventOfType, pipeWithEvents } from "./gamda/game";
+import { orderCharacterToStop, orderCharacterToMoveInDirection, updateMovingBehavior } from "./movement";
 import { startGame } from "./start";
 import { shootBallWithSelectedCharacter } from "./shoot";
-import { getEntity, EntityAdded, ENTITY_ADDED } from "./gamda/entities";
+import { EntityAdded, ENTITY_ADDED } from "./gamda/entities";
+import { Seconds } from "./gamda/physics/units";
+import { updatePhysics } from "./physics";
+import { Soccer, initialGameState } from "./soccer";
+
+const updateGame = (delta: Seconds) => (game: Soccer): [Soccer, GameEvents] => pipeWithEvents(
+    game,
+    updateMovingBehavior(delta),
+    updatePhysics(delta)
+);
 
 const ticksPerSecond = 60.0 as TicksPerSecond;
 const everyTick$ = ticks(ticksPerSecond);
-
-const wsadDirectionToVec = (wsadDirection: WSADDirection): Vec<Scalar> => normalizeVector({
-    x: wsadDirection.x as Scalar,
-    y: 0 as Scalar,
-    z: wsadDirection.y as Scalar,
-});
-
-const handleEntityAdded = (event: EntityAdded) => (game: Soccer): [Soccer, GameEvents] => [{
-    ...game,
-    view: addEntityView(getEntity(event.entityId, game.entities)!, game.view)
-}, []];
-
 const directionToMove$ = wsad().pipe(map(wsadDirectionToVec));
 
 const gameEvents$ = gameEvents();
+const whenEntityIsAdded$ = gameEvents$.pipe(filter(isEventOfType<GameEvent, EntityAdded>(ENTITY_ADDED)));
 
 const gameCommands$: Observable<GameCommand<Soccer>> = merge(
     of(startGame),
-    everyTick$.pipe(map(unary(updateGame))),
+    everyTick$.pipe(map(updateGame)),
     directionToMove$.pipe(filter(isZeroVector)).pipe(mapTo(orderCharacterToStop)),
-    directionToMove$.pipe(filter(complement(isZeroVector))).pipe(map(unary(orderCharacterToMoveInDirection))),
+    directionToMove$.pipe(filter(isNotZeroVector)).pipe(map(orderCharacterToMoveInDirection)),
     onKeyDown("e").pipe(mapTo(shootBallWithSelectedCharacter)),
-    gameEvents$.pipe(filter(isEventOfType<GameEvent, EntityAdded>(ENTITY_ADDED)), map(handleEntityAdded)),
+    whenEntityIsAdded$.pipe(map(addEntityView)),
 );
 
-const whenGameUpdates$ = game(gameCommands$, gameEvents$, initialGameState);
-whenGameUpdates$.subscribe(updateEntitiesMeshPositions);
+const onGameUpdate$ = game(gameCommands$, gameEvents$, initialGameState);
+onGameUpdate$.subscribe(updateEntitiesMeshPositions);
  

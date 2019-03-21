@@ -1,5 +1,7 @@
 import { fromEvent, Observable, merge } from "rxjs";
 import { filter, mapTo, scan, map, tap } from "rxjs/operators";
+import { Scalar } from "uom-ts";
+import { Vec, normalizeVector } from "./vectors";
 
 export interface WSADDirection {
     x: 1 | 0 | -1;
@@ -47,3 +49,9 @@ const wsadStateToWsadDirection = (wsadState: WSADState): WSADDirection => ({
 });
 
 export const spaceDown = (): Observable<KeyboardEvent> => keyDown$.pipe(filter(isKey("Space")));
+
+export const wsadDirectionToVec = (wsadDirection: WSADDirection): Vec<Scalar> => normalizeVector({
+    x: wsadDirection.x as Scalar,
+    y: 0 as Scalar,
+    z: wsadDirection.y as Scalar,
+});

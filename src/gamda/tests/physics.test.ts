@@ -3,13 +3,11 @@ import { assert } from "chai";
 import { Scalar } from "uom-ts";
 import { pipe } from "remeda";
  
-import {
-    Meters, MetersPerSecond, Seconds, move, setBodyVelocityTowardsDirection, accelerate, MetersPerSquaredSecond,
-    tuneAccelerationToNotExceedGivenVelocity, applyFriction
-} from "../physics";
 import { 
-    givenBody, withVelocity, withZeroVelocity, atPosition, withFriction
+    givenBody, withVelocity, withZeroVelocity, atPosition, withDampening
 } from "./fixtures/body";
+import { Seconds, Meters, MetersPerSecond, MetersPerSquaredSecond } from "../physics/units";
+import { setBodyVelocityTowardsDirection, accelerate, tuneAccelerationToNotExceedGivenVelocity, applyDampening, move } from "../physics/motion";
 
 test("that body is not moved if velocity is zero", () => {
     const body = pipe(givenBody(), withZeroVelocity);
@@ -160,11 +158,11 @@ describe("can tune acceleration so that it won't exceed given velocity", () => {
     });
 });
 
-describe("friction is decreasing velocity of body during time until it stopes", () => {
+describe("dampening is decreasing velocity of body during time until it stopes", () => {
     test("velocity stays at zero if its already zero", () => {
         const body = pipe(givenBody(), withZeroVelocity);
 
-        const changedBody = applyFriction(
+        const changedBody = applyDampening(
             1.0 as Seconds,
             body
         );
@@ -176,7 +174,7 @@ describe("friction is decreasing velocity of body during time until it stopes", 
         });
     });
 
-    test("velocity should be decreased by friction", () => {
+    test("velocity should be decreased by dampening", () => {
         const body = pipe(
             givenBody(),
             withVelocity({
@@ -184,10 +182,10 @@ describe("friction is decreasing velocity of body during time until it stopes", 
                 y: 0 as MetersPerSecond,
                 z: 0 as MetersPerSecond,
             }),
-            withFriction(1.0 as MetersPerSquaredSecond)
+            withDampening(1.0 as MetersPerSquaredSecond)
         );
 
-        const changedBody = applyFriction(
+        const changedBody = applyDampening(
             1.0 as Seconds,
             body
         );

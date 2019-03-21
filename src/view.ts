@@ -8,10 +8,14 @@ import {
  } from "babylonjs";
 import "babylonjs-materials";
 
-import { Meters, Body, Circle } from "./gamda/physics";
 import { Vec, vecToArray, Radians } from "./gamda/vectors";
-import { Entity, EntityId, Physical, getEntity, Traits } from "./gamda/entities";
+import { Entity, EntityId, getEntity, EntityAdded } from "./gamda/entities";
 import { Soccer } from "./soccer";
+import { Meters } from "./gamda/physics/units";
+import { Body } from "./gamda/physics/body";
+import { Circle } from "./gamda/physics/shape";
+import { Physical } from "./gamda/entitiesPhysics";
+import { GameEvents } from "./gamda/game";
 
 export interface View {
     engine: Engine;
@@ -61,7 +65,10 @@ export const createCamera = (scene: Scene): Camera => {
 
 export const updateEntitiesMeshPositions = (game: Soccer): Soccer => {
     game.view.entitiesMesh.forEach(
-        (mesh, entityId) => mesh.setAbsolutePosition(vecToBabylonVec(getEntity(entityId, game.entities)!.body.position))
+        (mesh, entityId) => {
+            let entity = getEntity(entityId, game.entities) as Entity<Physical>;
+            mesh.setAbsolutePosition(vecToBabylonVec(entity.body.position));
+        }
     );
     return game;
 };
@@ -80,12 +87,12 @@ export const createCharacterView = curry((scene: Scene, character: Entity<Physic
     return sphere;
 });
 
-export const addEntityView = (entity: Entity<Traits>, view: View): View => {
+export const addEntityMeshToView = (entity: Entity<Physical & unknown>, view: View): View => {
     const mesh = createCharacterView(view.scene, entity);
     view.shadowGenerator.addShadowCaster(mesh);
     return {
         ...view,
-        entitiesMesh: view.entitiesMesh.set(entity.id, mesh),
+        entitiesMesh: view.entitiesMesh.set(entity.id!, mesh),
     };
 };
 
@@ -99,3 +106,8 @@ export const getPointerCurrent3dPosition = (view: View): Vec<Meters> | null => {
 
 const vecToBabylonVec = (vec: Vec): Vector3 => Vector3.FromArray(vecToArray(vec));
 const babylonVectorToVec = (vec: Vector3): Vec<Meters> => ({x: vec.x as Meters, y: vec.y as Meters, z: vec.z as Meters});
+
+export const addEntityView = (event: EntityAdded) => (game: Soccer): [Soccer, GameEvents] => [{
+    ...game,
+    view: addEntityMeshToView(getEntity(event.entityId, game.entities) as Entity<Physical>, game.view)
+}, []];

@@ -2,8 +2,10 @@
 import { Scalar } from "uom-ts";
 import { curry } from "ramda";
  
-import { accelerate, tuneAccelerationToNotExceedGivenVelocity, Seconds, MetersPerSecond, MetersPerSquaredSecond, Body } from "./physics";
 import { scaleVector, Vec } from "./vectors";
+import { Body } from "./physics/body";
+import { MetersPerSquaredSecond, MetersPerSecond, Seconds } from "./physics/units";
+import { accelerate, tuneAccelerationToNotExceedGivenVelocity } from "./physics/motion";
 
 export interface MovementBehavior {
     direction: Vec<Scalar>;
@@ -11,7 +13,12 @@ export interface MovementBehavior {
     maxVelocity: MetersPerSecond;
 }
 
-export const updateBodyMovingBehavior = curry((delta: Seconds, body: Body, movementBehavior: MovementBehavior): Body => (
+export interface WithBehavior {
+    body: Body;
+    movementBehavior: MovementBehavior;
+}
+
+export const updateBodyMovingBehavior = curry((delta: Seconds, movementBehavior: MovementBehavior, body: Body): Body => (
     accelerate(
         tuneAccelerationToNotExceedGivenVelocity(
             movementBehavior.maxVelocity,
@@ -32,7 +39,7 @@ export const orderToNotMove = (movementBehavior: MovementBehavior): MovementBeha
     direction: {x: 0 as Scalar, y: 0 as Scalar, z: 0 as Scalar},
 });
 
-export const orderToGoIntoDirection = curry((direction: Vec<Scalar>, movementBehavior: MovementBehavior): MovementBehavior => ({
+export const orderToGoIntoDirection = (direction: Vec<Scalar>) => (movementBehavior: MovementBehavior): MovementBehavior => ({
     ...movementBehavior,
     direction
-}));
+});

@@ -1,57 +1,52 @@
 
 import { Map } from "immutable";
-import { assoc, curry } from "ramda";
+import { assoc, defaultTo, pipe, head, isNil, curryN } from "ramda";
 
-import { MovementBehavior } from "./movingBehavior";
-import { Body } from "./physics";
 import { GameEvent } from "./game";
+import { Maybe } from "./maybe";
 
 export type EntityId = number;
+export type EntityKind = string;
 
-export type Entity<T> = {id: EntityId} & T;
+export type Entity<T = any> = {
+    id: Maybe<EntityId>,
+    type: string,
+} & T;
 
 export interface Entities {
-    map: Map<EntityId, Entity<Traits>>;
+    map: Map<EntityId, Entity>;
     lastEntityId: EntityId;
 }
 
-export interface Physical {
-    body: Body;
-}
-
-export interface WithBehavior {
-    body: Body;
-    movementBehavior: MovementBehavior;
-}
-
-export type Traits = Physical & WithBehavior;
-
-export const mergeEntitiesWithPropMap = curry((prop: string, entities: Entities, propMap: Map<EntityId, any>): Entities => ({
+export const mergeEntitiesWithPropMap = (prop: string, entities: Entities, propMap: Map<EntityId, any>): Entities => ({
     ...entities,
     map: propMap.toArray().reduce(
         (entitiesMap, [entityId, propVal]) => entitiesMap.update(entityId, assoc(prop, propVal)),
         entities.map
     ),
-}));
+});
 
-export const propMapFromEntities = curry(<T extends keyof Traits> (prop: T, entities: Entities): Map<EntityId, Traits[T]> => (
-    Map(entities.map.toArray().map(([id, entity]) => [id, entity[prop]] as [EntityId, Traits[T]]))
-));
+export const propMapFromEntities = (prop: string, entities: Entities): Map<EntityId, any> => (
+    Map(entities.map.toArray().map(([id, entity]: [EntityId, any]) => [id, entity[prop]] as [EntityId, any]))
+);
 
-export const addEntity = <T extends Traits>(entity: T, entities: Entities): [Entities, Entity<T>] => ([
+export const storeEntity = <T extends Entity>(entity: T) => (entities: Entities): [Entities, T] => ( isNil(entity.id) ? [
     {
         ...entities,
         lastEntityId: nextEntityId(entities.lastEntityId),
-        map: entities.map.set(nextEntityId(entities.lastEntityId), {
-            ...entity,
-            id: nextEntityId(entities.lastEntityId),
-        })
-    },
-    {
+        map: entities.map.set(nextEntityId(entities.lastEntityId), {...entity, id: nextEntityId(entities.lastEntityId)}),
+    }, {
         ...entity,
-        id: nextEntityId(entities.lastEntityId),
+        id: nextEntityId(entities.lastEntityId)
     }
+] : [
+    {
+        ...entities,
+        map: entities.map.set(entity.id, entity),
+    }, entity
 ]);
+
+export const storeEntityH = <T extends Entity>(entity: T) => pipe<Entities, [Entities, T], Entities>(storeEntity(entity), head);
 
 export const ENTITY_ADDED = "EntityAdded";
 
@@ -60,17 +55,21 @@ export interface EntityAdded extends GameEvent {
     entityId: EntityId;
 }
 
-export const getEntity = (entityId: EntityId, entities: Entities): Entity<Traits> | undefined => entities.map.get(entityId);
-export const setEntity = (entity: Entity<Traits>, entities: Entities): Entities => ({
+export const entitiesList = (entities: Entities): Entity<unknown>[] => entities.map.valueSeq().toArray();
+export const getEntity = (entityId: EntityId, entities: Entities): Maybe<Entity<unknown>> => defaultTo(null, entities.map.get(entityId));
+export const setEntity = <T extends Entity>(entity: T, entities: Entities): Entities => ({
     ...entities,
-    map: entities.map.set(entity.id, entity)
+    map: entities.map.set(entity.id!, entity)
 });
-export const updateEntity = (entityId: EntityId, updater: (entity: Entity<Traits>) => Entity<Traits>, entities: Entities): Entities => ({
+export const setManyEntities = (entitiesList: Entity<unknown>[], entities: Entities): Entities => (
+    entitiesList.reduce((entities, entity) => setEntity(entity, entities), entities)
+);
+export const updateEntity = <T extends Entity<unknown>>(entityId: EntityId, updater: (entity: T) => T, entities: Entities): Entities => ({
     ...entities,
     map: entities.map.update(entityId, updater)
 });
 
-export const mapEntities = (mapFunction: (entity: Entity<Traits>) => Entity<Traits>, entities: Entities): Entities => ({
+export const mapEntities = <T extends Entity<unknown>>(mapFunction: (entity: T) => T) => (entities: Entities): Entities => ({
     ...entities,
     map: entities.map.map(mapFunction),
 });

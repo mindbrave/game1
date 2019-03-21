@@ -1,10 +1,10 @@
 
-import { curry } from "ramda";
-
-import { Body, Meters, MetersPerSecond, MetersPerSquaredSecond, ShapeType, Kilograms } from "../../physics";
 import { Vec } from "../../vectors";
+import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "../../physics/units";
+import { ShapeType, Circle } from "../../physics/shape";
+import { Body } from "../../physics/body";
 
-export const givenBody = (): Body => ({
+export const givenBody = (): Body<Circle> => ({
     position: {
         x: 0.0 as Meters,
         y: 0.0 as Meters,
@@ -15,7 +15,7 @@ export const givenBody = (): Body => ({
         y: 0.0 as MetersPerSecond,
         z: 0.0 as MetersPerSecond,
     },
-    friction: 0 as MetersPerSquaredSecond,
+    dampening: 0 as MetersPerSquaredSecond,
     shape: {
         type: ShapeType.Circle,
         radius: 1.0 as Meters,
@@ -23,17 +23,17 @@ export const givenBody = (): Body => ({
     mass: 1.0 as Kilograms,
 });
 
-export const atPosition = curry((position: Vec<Meters>, body: Body): Body => ({
+export const atPosition = (position: Vec<Meters>) => <B extends Body>(body: B): B => ({
     ...body,
     position,
-}));
+});
 
-export const withVelocity = curry((velocity: Vec<MetersPerSecond>, body: Body): Body => ({
+export const withVelocity = (velocity: Vec<MetersPerSecond>) => <B extends Body>(body: B): B => ({
     ...body,
     velocity,
-}));
+});
 
-export const withZeroVelocity = (body: Body): Body => ({
+export const withZeroVelocity = <B extends Body>(body: B): B => ({
     ...body,
     velocity: {
         x: 0 as MetersPerSecond,
@@ -42,15 +42,15 @@ export const withZeroVelocity = (body: Body): Body => ({
     }
 });
 
-export const withFriction = curry((friction: MetersPerSquaredSecond, body: Body): Body => ({
+export const withDampening = (dampening: MetersPerSquaredSecond) => <B extends Body>(body: B): B => ({
     ...body,
-    friction
-}));
+    dampening
+});
 
-export const circleShaped = curry((radius: Meters, body: Body): Body => ({
+export const circleShaped = (radius: Meters) => <B extends Body>(body: B): B & Body<Circle> => ({
     ...body,
     shape: {
         type: ShapeType.Circle,
         radius,
     }
-}));
+});
