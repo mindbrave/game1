@@ -11,7 +11,7 @@ import { Physical, alwaysCollide, bounce, doesntOverlap, block } from "./gamda/e
 import { WithBehavior } from "./gamda/movingBehavior";
 import { getEntity, storeEntity, Entity } from "./gamda/entities";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "./gamda/physics/units";
-import { ShapeType, Circle } from "./gamda/physics/shape";
+import { ShapeType, Sphere } from "./gamda/physics/shape";
 import { Body } from "./gamda/physics/body";
 
 export type Projectile = Entity<Physical & WithBehavior>;
@@ -24,7 +24,7 @@ export const shootBallWithSelectedCharacter = (game: Soccer): [Soccer, GameEvent
         return [game, []];
     }
     const selectedEntity = getEntity(game.selectedCharacterId, game.entities) as Entity<Physical>;
-    const selectedEntityBody = selectedEntity.body as Body<Circle>;
+    const selectedEntityBody = selectedEntity.body as Body<Sphere>;
     const shootDirection = normalizeVector(subtractVectors({...targetPosition, y: selectedEntityBody.position.y}, selectedEntityBody.position));
     const distanceBetweenBallAndEntity = 0.1 as Meters;
     const projectileStartPosition = addVectors(
@@ -54,7 +54,7 @@ const createProjectile = (position: Vec<Meters>, direction: Vec<Scalar>): Projec
         dampening: 5.0 as MetersPerSquaredSecond,
         mass: 999999 as Kilograms,
         shape: {
-            type: ShapeType.Circle,
+            type: ShapeType.Sphere,
             radius: PROJECTILE_RADIUS,
         }
     },

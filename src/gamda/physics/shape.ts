@@ -1,10 +1,10 @@
 import { Vec } from "../vectors";
 import { Meters } from "./units";
-import { Body } from "./body";
 
 export enum ShapeType {
     Segment,
-    Circle,
+    Sphere,
+    Triangle
 }
 
 export type Segment = {
@@ -13,11 +13,16 @@ export type Segment = {
     pointB: Vec<Meters>,
 }
 
-export type Circle = {
-    type: ShapeType.Circle,
+export type Sphere = {
+    type: ShapeType.Sphere,
     radius: Meters,
 }
 
-export type Shape = Circle | Segment;
+export type Triangle = {
+    type: ShapeType.Triangle,
+    p1: Vec<Meters>,
+    p2: Vec<Meters>,
+    p3: Vec<Meters>,
+}
 
-export const isCircleShaped = (body: Body): body is Body<Circle> => ShapeType.Circle === body.shape.type;
+export type Shape = Sphere | Segment | Triangle;

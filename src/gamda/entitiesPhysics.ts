@@ -1,25 +1,24 @@
 
-import { isEmpty, head, sortBy, prop, isNil, curry, evolve, concat, map, pick } from "ramda";
+import { isEmpty, head, sortBy, isNil, curry, evolve, concat, map } from "ramda";
 
 import { EntityKind, Entity, Entities, setEntity, mapEntities, updateEntity, entitiesList, setManyEntities, EntityId, getEntity } from "./entities";
 import { Map } from "immutable";
-import { circleBounceOfCircle } from "./physics/collisions/resolve";
+import { sphereBounceOfSphere, sphereBounceOfStaticTriangle } from "./physics/collisions/resolve";
 import { Seconds } from "./physics/units";
-import { isCircleShaped } from "./physics/shape";
-import { Body } from "./physics/body";
+import { Body, isSphere, isTriangle } from "./physics/body";
 import { Maybe } from "./maybe";
 import { sub } from "uom-ts";
 import { move, applyDampening, setZeroVelocity } from "./physics/motion";
 import { GameEvents, pipeWithEvents } from "./game";
-import { timeTillCollisionBetweenBodies } from "./physics/collisions/detection";
-import { everyDistinctPairInArray } from "./distinctPairsFromArray";
+import { collisionBetweenBodies } from "./physics/collisions/detection";
+import { BodyCollision } from "./physics/collisions/collision";
 
 export type EntityContactEffect<T extends Entity = Entity> = (entity: T) => T;
 
 export type DoesCollide = (entityA: Entity<Physical>, entityB: Entity<Physical>) => boolean;
 export type DoesOverlap = DoesCollide;
 
-export type OnCollision = (entityA: Entity<Physical>, entityB: Entity<Physical>, entities: Entities) => [Entities, GameEvents];
+export type OnCollision = (collision: EntitiesCollision, entityA: Entity<Physical>, entityB: Entity<Physical>, entities: Entities) => [Entities, GameEvents];
 export type OnOverlap = OnCollision;
 
 export type ContactBehavior = {
@@ -29,9 +28,9 @@ export type ContactBehavior = {
     onOverlap: OnOverlap[],
 };
 
-export interface Collision {
-    timeToImpact: Seconds;
-    between: [EntityId, EntityId],
+export interface EntitiesCollision {
+    bodyCollision: BodyCollision;
+    betweenEntities: [EntityId, EntityId],
 }
 
 export type Physical = {
@@ -50,50 +49,74 @@ export const moveEntitiesWithCollisions = curry((duration: Seconds, events: Game
     if (isNil(collision)) {
         return [movedEntities, events];
     }
-    const [entity1id, entity2id] = collision.between;
+    const [entity1id, entity2id] = collision.betweenEntities;
     const entity1 = getEntity(entity1id, movedEntities) as Entity<Physical>;
     const entity2 = getEntity(entity2id, movedEntities) as Entity<Physical>;
     const [entitiesAfterCollision, eventsAfterCollision] = pipeWithEvents(
         movedEntities,
-        applyContactEffectsAgainstEntity(entity1, entity2),
-        applyContactEffectsAgainstEntity(entity2, entity1)
+        applyContactEffectsAgainstEntity(entity1, entity2, collision),
+        applyContactEffectsAgainstEntity(entity2, entity1, collision)
     );
 
-    return moveEntitiesWithCollisions(sub(duration, collision.timeToImpact), concat(events, eventsAfterCollision), entitiesAfterCollision);
+    return moveEntitiesWithCollisions(sub(duration, collision.bodyCollision.timeToImpact), concat(events, eventsAfterCollision), entitiesAfterCollision);
 });
 
-export const moveUntilFirstCollision = (duration: Seconds, entities: Entity<Physical>[]): [Entity<Physical>[], Maybe<Collision>] => {
+export const moveUntilFirstCollision = (duration: Seconds, entities: Entity<Physical>[]): [Entity<Physical>[], Maybe<EntitiesCollision>] => {
     const incomingCollisions = findIncomingCollisions(duration, entities);
     if (isEmpty(incomingCollisions)) {
         return [map(evolve({body: move(duration)}), entities), null];
     }
-    const earliestCollision = head(sortBy<Collision>(prop('timeToImpact'), incomingCollisions))!;
-    let movedEntities = map<Entity<Physical>, Entity<Physical>>(evolve({body: move(earliestCollision.timeToImpact)}), entities);
+    const earliestCollision = head(sortBy((collision: EntitiesCollision): Seconds => collision.bodyCollision.timeToImpact, incomingCollisions))!;
+    let movedEntities = map<Entity<Physical>, Entity<Physical>>(evolve({body: move(earliestCollision.bodyCollision.timeToImpact)}), entities);
     return [movedEntities, earliestCollision];
 };
 
-const findIncomingCollisions = (duration: Seconds, entities: Entity<Physical>[]): Collision[] => (
-    everyDistinctPairInArray(entities).filter(([entityA, entityB]) => doesEntitiesCollide(entityA, entityB)).map(([entityA, entityB]) => ({
+/*  This function is made in imperative way because there were big performance problem with declarative approach.
+    Declarative version:
+
+    everyDistinctPairInArray(entities).filter(([entityA, entityB]) => canEntitiesCollide(entityA, entityB)).map(([entityA, entityB]) => ({
         timeToImpact: timeTillCollisionBetweenBodies(entityA.body, entityB.body, duration),
         between: [entityA.id, entityB.id],
-    })).filter((incomingCollision): incomingCollision is Collision => incomingCollision.timeToImpact !== null)
-);
+    })).filter(isNoCollision)
+*/
+const findIncomingCollisions = (duration: Seconds, entities: Entity<Physical>[]): EntitiesCollision[] => {
+    const foundCollisions: EntitiesCollision[] = [];
+    let i = 0, k, entityA, entityB, bodyCollision: Maybe<BodyCollision>;
+    for (i; i < entities.length; i+=1) {
+        for (k = i + 1; k < entities.length; k+=1) {
+            entityA = entities[i];
+            entityB = entities[k];
+            if (!canEntitiesCollide(entityA, entityB)) {
+                continue;
+            }
+            bodyCollision = collisionBetweenBodies(entityA.body, entityB.body, duration);
+            if (bodyCollision === null) {
+                continue;
+            }
+            foundCollisions.push({
+                bodyCollision,
+                betweenEntities: [entityA.id!, entityB.id!], 
+            });
+        }
+    }
+    return foundCollisions;
+};
 
-const doesEntitiesCollide = (entityA: Entity<Physical>, entityB: Entity<Physical>): boolean => {
+const canEntitiesCollide = (entityA: Entity<Physical>, entityB: Entity<Physical>): boolean => {
     const contactBehaviorAvsB = entityA.contactBehaviors.get(entityB.type);
     const contactBehaviorBvsA = entityB.contactBehaviors.get(entityA.type);
-    if (isNil(contactBehaviorAvsB) || isNil(contactBehaviorBvsA)) {
+    if (contactBehaviorAvsB === undefined || contactBehaviorBvsA === undefined) {
         return false;
     }
     return contactBehaviorAvsB.doesCollide(entityA, entityB) && contactBehaviorBvsA.doesCollide(entityB, entityA);
 };
 
-const applyContactEffectsAgainstEntity = (entity1: Entity<Physical>, entity2: Entity<Physical>) => (entities: Entities): [Entities, GameEvents] => {
+const applyContactEffectsAgainstEntity = (entity1: Entity<Physical>, entity2: Entity<Physical>, collision: EntitiesCollision) => (entities: Entities): [Entities, GameEvents] => {
     const contactBehaviorAgainstEntity2 = entity1.contactBehaviors.get(entity2.type);
     if (!isNil(contactBehaviorAgainstEntity2)) {
         return contactBehaviorAgainstEntity2.onCollision.reduce(
             ([entities, events]: [Entities, GameEvents], onCollision: OnCollision): [Entities, GameEvents] => {
-                let [newEntities, newEvents] = onCollision(entity1, entity2, entities);
+                let [newEntities, newEvents] = onCollision(collision, entity1, entity2, entities);
                 return [newEntities, concat(events, newEvents)];
             },
             [entities, []]
@@ -102,14 +125,17 @@ const applyContactEffectsAgainstEntity = (entity1: Entity<Physical>, entity2: En
     return [entities, []];
 };
 
-export const block: OnCollision = (entityA, entityB, entities) => (
+export const block: OnCollision = (collision, entityA, entityB, entities) => (
     [updateEntity<Entity<Physical>>(entityA.id!, evolve({body: setZeroVelocity}), entities), []]
 );
 
-export const bounce = (entityA: Entity<Physical>, entityB: Entity<Physical>, entities: Entities): [Entities, GameEvents] => {
-    entityA = isCircleShaped(entityA.body) ?
+export const bounce: OnCollision = (collision, entityA, entityB, entities) => {
+    const partA = entityA.body.parts[collision.bodyCollision.betweenBodyParts[0]];
+    const partB = entityB.body.parts[collision.bodyCollision.betweenBodyParts[1]];
+    entityA = isSphere(partA) ?
         (
-            isCircleShaped(entityB.body) ? ({...entityA, body: circleBounceOfCircle(entityA.body, entityB.body)}) :
+            isSphere(partB) ? ({...entityA, body: sphereBounceOfSphere(entityA.body, partA, entityB.body, partB)}) :
+            isTriangle(partB) ? ({...entityA, body: sphereBounceOfStaticTriangle(entityA.body, partA, entityB.body, partB)}) :
             entityA
         ) : entityA;
     return [setEntity(entityA, entities), []];

@@ -1,33 +1,64 @@
 
-import { equals } from "ramda";
+import * as math from "mathjs"
+import { head, sortBy, prop, isEmpty } from "ramda";
 
-import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, normalizeVector, dotProduct, isZeroVector } from "../../vectors";
-import { add, sub, lt, pow2, lte, gte, sqrt2, div, mul } from "uom-ts";
+import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, normalizeVector, dotProduct, isZeroVector, Vec, crossProduct, addVectors, vecToArray, vecFromArray, negateVector } from "../../vectors";
+import { add, sub, lt, pow2, lte, gte, sqrt2, div, mul, AnyUnit, negate, MultiplyUnits } from "uom-ts";
 import { Seconds, Meters, SquaredMeters, MetersPerSecond } from "../units";
-import { ShapeType, Shape, Circle } from "../shape";
-import { Body } from "../body";
+import { Sphere, Triangle } from "../shape";
+import { Body, isSphere, isTriangle, BodyPart } from "../body";
+import { BodyCollision } from "./collision";
 
 type TimeToImpact = Seconds;
+type CollisionPoint = Vec<Meters>;
+type CollisionData = {
+    timeToImpact: TimeToImpact,
+    contactPoints: [CollisionPoint, CollisionPoint]
+}
 
+export const collisionBetweenBodies = (body1: Body, body2: Body, duration: Seconds): BodyCollision | null => {
+    let collisions: BodyCollision[] = [],
+        collisionData: CollisionData | null,
+        part1: BodyPart,
+        part2: BodyPart;
+    for (let i=0; i<body1.parts.length; i+=1) {
+        part1 = body1.parts[i];
+        for (let k=0; k<body2.parts.length; k+=1) {
+            part2 = body2.parts[k];
+            if (isSphere(part1) && isSphere(part2)) {
+                collisionData = incomingCollisionBetweenSpheres(body1, part1, body2, part2, duration);
+            } else if (isSphere(part1) && isTriangle(part2)) {
+                collisionData = incomingCollisionBetweenSphereAndTriangle(body1, part1, body2, part2, duration);
+            } else if (isTriangle(part1) && isSphere(part2)) {
+                collisionData = incomingCollisionBetweenSphereAndTriangle(body2, part2, body1, part1, duration);
+            } else {
+                throw new Error('No collision function for given shapes specified');
+            }
+            if (collisionData === null) {
+                continue;
+            }
 
-export const timeTillCollisionBetweenBodies = (body1: Body, body2: Body, duration: Seconds): TimeToImpact | null => (
-    isCircle(body1) ? (
-        isCircle(body2) ? incomingCollisionBetweenCircles(body1, body2, duration) : null
-    ) : null
-);
-
-const isCircle = (body: Body): body is Body<Circle> => equals(body.shape.type, ShapeType.Circle);
+            collisions.push({...collisionData, betweenBodyParts: [i, k]});
+        }
+    }
+    if (isEmpty(collisions)) {
+        return null;
+    }
+    return head(sortBy(prop<'timeToImpact', number>('timeToImpact'), collisions))!;
+};
 
 /**
  * Implementation of this algorithm -> https://www.gamasutra.com/view/feature/131424/pool_hall_lessons_fast_accurate_.php?page=1
  */
-const incomingCollisionBetweenCircles = (body1: Body<Circle>, body2: Body<Circle>, duration: Seconds): TimeToImpact | null => {
+export const incomingCollisionBetweenSpheres = (body1: Body, part1: BodyPart<Sphere>, body2: Body, part2: BodyPart<Sphere>, duration: Seconds): CollisionData | null => {
     const [movingBody, staticBody] = considerSecondBodyStationary(body1, body2);
     if (isZeroVector(movingBody.velocity)) {
         return null;
     }
-    const radiusSum = add(movingBody.shape.radius, staticBody.shape.radius);
-    const towardsVector = subtractVectors(staticBody.position, movingBody.position);
+    const movingPartPosition = addVectors(movingBody.position, part1.relativePosition);
+    const staticPartPosition = addVectors(staticBody.position, part2.relativePosition);
+    const radiusSum = add(part1.shape.radius, part2.shape.radius);
+    const towardsVector = subtractVectors(staticPartPosition, movingPartPosition);
     const distanceBetweenEntities = sub(vectorMagnitude(towardsVector), radiusSum);
     const entityTranslation = scaleVector(duration, movingBody.velocity);
     const distanceEntityCanMoveSqr = vectorSqrMagnitude(entityTranslation);
@@ -61,10 +92,74 @@ const incomingCollisionBetweenCircles = (body1: Body<Circle>, body2: Body<Circle
     const timeToImpact = !isZeroVector(body1.velocity) ?
         div(realDistanceTillCollisionFromBody1, vectorMagnitude(body1.velocity)) :
         div(realDistanceTillCollisionFromBody2, vectorMagnitude(body2.velocity));
-    return timeToImpact;
+    const normalBetweenCentersAB = normalizeVector(towardsVector);
+    return {
+        timeToImpact,
+        contactPoints: [
+            scaleVector(part1.shape.radius, normalBetweenCentersAB),
+            scaleVector(part2.shape.radius, negateVector(normalBetweenCentersAB))
+        ]
+    };
 };
 
-const considerSecondBodyStationary = <A extends Shape, B extends Shape>(body1: Body<A>, body2: Body<B>): [Body<A>, Body<B>] => {
+export const incomingCollisionBetweenSphereAndTriangle = (body1: Body, part1: BodyPart<Sphere>, body2: Body, part2: BodyPart<Triangle>, duration: Seconds): CollisionData | null => {
+    const spherePosition = addVectors(body1.position, part1.relativePosition);
+    const trianglePosition = addVectors(body2.position, part2.relativePosition);
+    const p1 = addVectors(trianglePosition, part2.shape.p1);
+    const p2 = addVectors(trianglePosition, part2.shape.p2);
+    const p3 = addVectors(trianglePosition, part2.shape.p3);
+    const AB = subtractVectors(p2, p1);
+    const AC = subtractVectors(p3, p1);
+    const normal = normalizeVector(crossProduct(AB, AC));
+    const translation: Vec<Meters> = scaleVector(duration, body1.velocity);
+    const sphereContactPointWithPlane = subtractVectors(spherePosition, scaleVector(part1.shape.radius, normal));
+    const sphereContactPointRelative = subtractVectors(sphereContactPointWithPlane, spherePosition);
+    const destinationPointOfSphere = addVectors(spherePosition, translation);
+    const destinationPointOfContactPoint = addVectors(destinationPointOfSphere, sphereContactPointRelative);
+    const intersect = math.intersect as any; // types are wrong so we have to cast as any
+    const planeCoefficients = coefficientsOfPlaneFrom3Points(p1, p2, p3);
+    const intersectionPointArray: [Meters, Meters, Meters] = intersect(vecToArray(sphereContactPointWithPlane), vecToArray(destinationPointOfContactPoint), planeCoefficients);
+    const intersectionPoint = vecFromArray(intersectionPointArray);
+    const sphereContactPointToIntersectionPointLength = vectorMagnitude(subtractVectors(intersectionPoint, sphereContactPointWithPlane));
+    const translationLength = vectorMagnitude(translation);
+    if (gte(sphereContactPointToIntersectionPointLength, translationLength)) {
+        return null;
+    }
+    const v0 = AB, v1 = AC, v2 = subtractVectors(intersectionPoint, p1);
+    const d00 = dotProduct(v0, v0);
+    const d01 = dotProduct(v0, v1);
+    const d11 = dotProduct(v1, v1);
+    const d20 = dotProduct(v2, v0);
+    const d21 = dotProduct(v2, v1);
+    const denom = d00 * d11 - d01 * d01;
+    const gamma = (d11 * d20 - d01 * d21) / denom;
+    const beta = (d00 * d21 - d01 * d20) / denom;
+    const alpha = 1.0 - gamma - beta;
+
+    if (!((0 <= alpha && alpha <= 1) && (0 <= beta && beta <= 1) && (0 <= gamma && gamma <= 1))) {
+        return null;
+    }
+    return {
+        timeToImpact: div(mul(sphereContactPointToIntersectionPointLength, duration), translationLength),
+        contactPoints: [sphereContactPointRelative, subtractVectors(intersectionPoint, trianglePosition)]
+    };
+};
+
+const coefficientsOfPlaneFrom3Points = <T extends AnyUnit>(p0: Vec<T>, p1: Vec<T>, p2: Vec<T>): [MultiplyUnits<T, T>, MultiplyUnits<T, T>, MultiplyUnits<T, T>, MultiplyUnits<MultiplyUnits<T, T>, T>] => {
+    const a1 = sub(p1.x, p0.x);
+    const b1 = sub(p1.y, p0.y);
+    const c1 = sub(p1.z, p0.z);
+    const a2 = sub(p2.x, p0.x);
+    const b2 = sub(p2.y, p0.y);
+    const c2 = sub(p2.z, p0.z);
+    const a = sub(mul(b1, c2), mul(b2, c1));
+    const b = sub(mul(a2, c1), mul(a1, c2));
+    const c = sub(mul(a1, b2), mul(b1, a2));
+    const d = negate(sub(sub(mul(negate(a), p0.x), mul(b, p0.y)), mul(c, p0.z)));
+    return [a, b, c, d];
+};
+
+const considerSecondBodyStationary = (body1: Body, body2: Body): [Body, Body] => {
     return [
         {
             ...body1,

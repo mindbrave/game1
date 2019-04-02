@@ -4,7 +4,8 @@ import { Scalar } from "uom-ts";
 import { 
     addVectors, subtractVectors, scaleVector, vectorMagnitude, clampVector, projectVectorOntoXY, rotateVectorAroundZ,
     perpendicularVectorOnXYSpace,
-    Radians
+    Radians,
+    crossProduct
 } from "../vectors";
 
 test("Add two vectors", () => {
@@ -52,6 +53,15 @@ test("Project vector onto XY plane", () => {
     const projected = projectVectorOntoXY(v1);
 
     assert.deepEqual(projected, {x: 3, y: 4, z: 0});
+});
+
+test("Vectors cross product", () => {
+    const v1 = {x: 1 as Scalar, y: 0 as Scalar, z: 0 as Scalar};
+    const v2 = {x: 0 as Scalar, y: 1 as Scalar, z: 0 as Scalar};
+
+    const crossVector = crossProduct(v1, v2);
+
+    assert.deepEqual(crossVector, {x: 0, y: 0, z: 1});
 });
 
 test("Rotate around Z axis", () => {

@@ -13,7 +13,7 @@ import { Entity, EntityId, getEntity, EntityAdded } from "./gamda/entities";
 import { Soccer } from "./soccer";
 import { Meters } from "./gamda/physics/units";
 import { Body } from "./gamda/physics/body";
-import { Circle } from "./gamda/physics/shape";
+import { Sphere } from "./gamda/physics/shape";
 import { Physical } from "./gamda/entitiesPhysics";
 import { GameEvents } from "./gamda/game";
 
@@ -81,7 +81,7 @@ export const runRenderLoop = (view: View): View => {
 };
 
 export const createCharacterView = curry((scene: Scene, character: Entity<Physical>): Mesh => {
-    const body = character.body as Body<Circle>;
+    const body = character.body as Body<Sphere>;
     const sphere = MeshBuilder.CreateSphere("sphere", { diameter: body.shape.radius * 2, segments: 12 }, scene);
     sphere.setAbsolutePosition(vecToBabylonVec(body.position));
     return sphere;

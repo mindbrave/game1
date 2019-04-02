@@ -1,56 +1,84 @@
 
-import { Vec } from "../../vectors";
+import { Vec, vec } from "../../vectors";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "../../physics/units";
-import { ShapeType, Circle } from "../../physics/shape";
-import { Body } from "../../physics/body";
+import { ShapeType, Sphere, Triangle } from "../../physics/shape";
+import { Body, BodyPart } from "../../physics/body";
 
-export const givenBody = (): Body<Circle> => ({
-    position: {
-        x: 0.0 as Meters,
-        y: 0.0 as Meters,
-        z: 0.0 as Meters
-    },
-    velocity: {
-        x: 0.0 as MetersPerSecond,
-        y: 0.0 as MetersPerSecond,
-        z: 0.0 as MetersPerSecond,
-    },
+export const givenBody = (): Body => ({
+    position: vec(0, 0, 0) as Vec<Meters>,
+    velocity: vec(0, 0, 0) as Vec<MetersPerSecond>,
     dampening: 0 as MetersPerSquaredSecond,
-    shape: {
-        type: ShapeType.Circle,
-        radius: 1.0 as Meters,
-    },
+    parts: [{
+        relativePosition: vec(0, 0, 0) as Vec<Meters>,
+        shape: {
+            type: ShapeType.Sphere,
+            radius: 1.0 as Meters,
+        },
+    }],
     mass: 1.0 as Kilograms,
 });
 
-export const atPosition = (position: Vec<Meters>) => <B extends Body>(body: B): B => ({
+export const atPosition = (position: Vec<Meters>) => (body: Body): Body => ({
     ...body,
     position,
 });
 
-export const withVelocity = (velocity: Vec<MetersPerSecond>) => <B extends Body>(body: B): B => ({
+export const withVelocity = (velocity: Vec<MetersPerSecond>) => (body: Body): Body => ({
     ...body,
     velocity,
 });
 
-export const withZeroVelocity = <B extends Body>(body: B): B => ({
+export const withZeroVelocity = (body: Body): Body => ({
     ...body,
-    velocity: {
-        x: 0 as MetersPerSecond,
-        y: 0 as MetersPerSecond,
-        z: 0 as MetersPerSecond,
-    }
+    velocity: vec(0, 0, 0) as Vec<MetersPerSecond>,
 });
 
-export const withDampening = (dampening: MetersPerSquaredSecond) => <B extends Body>(body: B): B => ({
+export const withDampening = (dampening: MetersPerSquaredSecond) => (body: Body): Body => ({
     ...body,
     dampening
 });
 
-export const circleShaped = (radius: Meters) => <B extends Body>(body: B): B & Body<Circle> => ({
+export const sphereShaped = (radius: Meters) => (body: Body): Body => ({
     ...body,
+    parts: [{
+        relativePosition: vec(0, 0, 0) as Vec<Meters>,
+        shape: {
+            type: ShapeType.Sphere,
+            radius,
+        }
+    }]
+});
+
+export const triangleShaped = (p1: Vec<Meters>, p2: Vec<Meters>, p3: Vec<Meters>) => (body: Body): Body => ({
+    ...body,
+    parts: [{
+        relativePosition: vec(0, 0, 0) as Vec<Meters>,
+        shape: {
+            type: ShapeType.Triangle,
+            p1, p2, p3
+        }
+    }],
+});
+
+export const madeOf = (...bodyParts: BodyPart[]) => (body: Body): Body => ({
+    ...body,
+    parts: bodyParts
+});
+
+export const sphere = (radius: Meters, relativePosition: Vec<Meters>): BodyPart<Sphere> => ({
     shape: {
-        type: ShapeType.Circle,
+        type: ShapeType.Sphere,
         radius,
-    }
+    },
+    relativePosition
+});
+
+export const triangle = (points: [Vec<Meters>, Vec<Meters>, Vec<Meters>], relativePosition: Vec<Meters>): BodyPart<Triangle> => ({
+    shape: {
+        type: ShapeType.Triangle,
+        p1: points[0],
+        p2: points[1],
+        p3: points[2]
+    },
+    relativePosition
 });

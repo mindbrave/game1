@@ -8,7 +8,7 @@ import { vec, Vec, zeroVector } from "../vectors";
 import { entitiesList, Entity, storeEntityH, Entities } from "../entities";
 import { thatIsPhysical, givenEntity, thatOnCollisionWithEntity, emptyEntities, withBody, thatCollidesWithEntities, thatDoesNotCollideWithEntities } from "./fixtures/entities";
 import { Physical, bounce, moveEntitiesWithCollisions, block, OnCollision } from "../entitiesPhysics";
-import { circleShaped, atPosition, withVelocity } from "./fixtures/body";
+import { sphereShaped, atPosition, withVelocity } from "./fixtures/body";
 import { Meters, MetersPerSecond, Seconds } from "../physics/units";
 
 /** 
@@ -33,7 +33,7 @@ describe("test collision effects applying", () => {
             givenEntity('test'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(0, 0, 0) as Vec<Meters>),
                 withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -44,7 +44,7 @@ describe("test collision effects applying", () => {
             givenEntity('test'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(2, 0, 0) as Vec<Meters>),
                 withVelocity(vec(-1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -68,7 +68,7 @@ describe("test collision effects applying", () => {
             givenEntity('test'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(0, 0, 0) as Vec<Meters>),
                 withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -79,7 +79,7 @@ describe("test collision effects applying", () => {
             givenEntity('test'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(2, 0, 0) as Vec<Meters>),
                 withVelocity(vec(-1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -103,7 +103,7 @@ describe("test collision effects applying", () => {
             givenEntity('test1'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(0, 0, 0) as Vec<Meters>),
                 withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -114,7 +114,7 @@ describe("test collision effects applying", () => {
             givenEntity('test2'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(2, 0, 0) as Vec<Meters>),
                 withVelocity(vec(-1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -138,7 +138,7 @@ describe("test collision effects applying", () => {
             givenEntity('test1'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(0, 0, 0) as Vec<Meters>),
                 withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
             )),
@@ -149,7 +149,7 @@ describe("test collision effects applying", () => {
             givenEntity('test2'),
             thatIsPhysical,
             withBody(pipe(
-                circleShaped(0.5 as Meters),
+                sphereShaped(0.5 as Meters),
                 atPosition(vec(2, 0, 0) as Vec<Meters>),
                 withVelocity(vec(-1, 0, 0) as Vec<MetersPerSecond>)
             ))
@@ -379,7 +379,7 @@ describe("test moving, bouncing entities with collisions", () => {
 const givenBall = (): Entity<Physical> => pipeInline(
     givenEntity('ball'),
     thatIsPhysical,
-    withBody(circleShaped(0.5 as Meters)),
+    withBody(sphereShaped(0.5 as Meters)),
     thatCollidesWithEntities('ball'),
     thatOnCollisionWithEntity('ball', bounce)
 );

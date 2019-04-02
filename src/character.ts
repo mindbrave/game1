@@ -19,7 +19,7 @@ export const createCharacter = (position: Vec<Meters>): Character => ({
         velocity: vec(0, 0, 0) as Vec<MetersPerSecond>,
         dampening: 5.0 as MetersPerSquaredSecond,
         shape: {
-            type: ShapeType.Circle,
+            type: ShapeType.Sphere,
             radius: 1.0 as Meters,
         },
         mass: 1.0 as Kilograms,

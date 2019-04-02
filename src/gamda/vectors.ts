@@ -60,6 +60,12 @@ export const normalizeVector = <T extends AnyUnit>(v: Vec<T>): Vec<Scalar> => {
         };
 };
 
+export const crossProduct = <A extends AnyUnit, B extends AnyUnit>(v1: Vec<A>, v2: Vec<B>): Vec<MultiplyUnits<A, B>> => ({
+    x: sub(mul(v1.y, v2.z), mul(v1.z, v2.y)),
+    y: sub(mul(v1.z, v2.x), mul(v1.x, v2.z)),
+    z: sub(mul(v1.x, v2.y), mul(v1.y, v2.x)),
+})
+
 export const divideVector = <T extends AnyUnit, F extends AnyUnit>(factor: F, v: Vec<T>): Vec<DivideUnits<T, F>> => ({
     x: div(v.x, factor),
     y: div(v.y, factor),
@@ -100,6 +106,7 @@ export const isZeroVector = <T extends AnyUnit>(v: Vec<T>): boolean => v.x === 0
 export const isNotZeroVector = <T extends AnyUnit>(v: Vec<T>): boolean => !isZeroVector(v);
 
 export const vecToArray = <T extends AnyUnit>(v: Vec<T>): T[] => [v.x, v.y, v.z];
+export const vecFromArray = <T extends AnyUnit>(array: [T, T, T]): Vec<T> => ({x: array[0], y: array[1], z: array[2]});
 
 export const vecXYZToXZY = <T extends AnyUnit>(v: Vec<T>): Vec<T> => ({x: v.x, y: v.z, z: v.y});
 export const vecXZYToXYZ = vecXYZToXZY;
