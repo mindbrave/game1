@@ -221,4 +221,36 @@ describe("find incoming collisions between given sphere and triangles with body 
     
         expect(collision).to.be.not.null;
     });
+
+    test("both bodies are not moving", () => {
+        const bodyA = pipe(
+            givenBody(),
+            madeOf(
+                sphere(0.5 as Meters, vec(0, 0, 0) as Vec<Meters>)
+            ),
+            atPosition(vec(0, 1, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const bodyB = pipe(
+            givenBody(),
+            madeOf(
+                triangle(
+                    [
+                        vec(0, 0, 0) as Vec<Meters>,
+                        vec(0, 0, 1) as Vec<Meters>,
+                        vec(1, 0, 0) as Vec<Meters>
+                    ],
+                    vec(0, 0, 0) as Vec<Meters>
+                )
+            ),
+            atPosition(vec(0, 0, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const spherePartA = bodyA.parts[0] as BodyPart<Sphere>;
+        const trianglePartB = bodyB.parts[0] as BodyPart<Triangle>;
+
+        const collision = incomingCollisionBetweenSphereAndTriangle(bodyA, spherePartA, bodyB, trianglePartB, 5.0 as Seconds);
+    
+        expect(collision).to.be.null;
+    });
 });

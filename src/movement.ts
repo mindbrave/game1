@@ -5,14 +5,18 @@ import { Vec } from "./gamda/vectors";
 import { orderToGoIntoDirection, orderToNotMove, updateBodyMovingBehavior, WithBehavior } from "./gamda/movingBehavior";
 import { Seconds } from "./gamda/physics/units";
 import { GameEvents } from "./gamda/game";
-import { updateEntity, mapEntities, Entity, Entities } from "./gamda/entities";
+import { updateEntity, mapEntitiesWithTrait, Entity, Entities } from "./gamda/entities";
 import { Soccer } from "./soccer";
 
-export const orderCharacterToMoveInDirection = (direction: Vec<Scalar>) => (game: Soccer): [Soccer, GameEvents] => [{
+/**
+ * 
+ * Relative direction means forward, back, left and right.
+ */
+export const orderCharacterToMoveInDirection = (relativeDirection: Vec<Scalar>) => (game: Soccer): [Soccer, GameEvents] => [{
     ...game,
     entities: updateEntity<Entity<WithBehavior>>(
         game.selectedCharacterId,
-        evolve({movementBehavior: orderToGoIntoDirection(direction)}),
+        evolve({movementBehavior: orderToGoIntoDirection(relativeDirection)}),
         game.entities
     ),
 }, []];
@@ -27,7 +31,7 @@ export const updateMovingBehavior = (delta: Seconds) => (game: Soccer): [Soccer,
     []
 ]);
 
-const updateEntitiesMovingBehavior = (delta: Seconds, entities: Entities) => mapEntities((entity: Entity<WithBehavior>) => ({
+const updateEntitiesMovingBehavior = (delta: Seconds, entities: Entities) => mapEntitiesWithTrait('withBehavior', (entity: Entity<WithBehavior>) => ({
     ...entity,
     body: updateBodyMovingBehavior(delta, entity.movementBehavior, entity.body)
 }))(entities);

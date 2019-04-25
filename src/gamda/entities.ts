@@ -1,52 +1,44 @@
 
-import { Map } from "immutable";
-import { assoc, defaultTo, pipe, head, isNil, curryN } from "ramda";
+import { Map, Set } from "immutable";
+import { append, defaultTo, pipe, head, isNil } from "ramda";
 
 import { GameEvent } from "./game";
 import { Maybe } from "./maybe";
 
-export type EntityId = number;
+export type EntityId = number & {__brand: "EntityId"};
 export type EntityKind = string;
 
 export type Entity<T = any> = {
     id: Maybe<EntityId>,
     type: string,
+    traits: string[],
 } & T;
 
-export interface Entities {
+type ByTraitMap = {[trait:string]: Set<EntityId>};
+
+export type Entities = {
     map: Map<EntityId, Entity>;
+    byTrait: ByTraitMap,
     lastEntityId: EntityId;
-}
+};
 
-export const mergeEntitiesWithPropMap = (prop: string, entities: Entities, propMap: Map<EntityId, any>): Entities => ({
-    ...entities,
-    map: propMap.toArray().reduce(
-        (entitiesMap, [entityId, propVal]) => entitiesMap.update(entityId, assoc(prop, propVal)),
-        entities.map
-    ),
-});
-
-export const propMapFromEntities = (prop: string, entities: Entities): Map<EntityId, any> => (
-    Map(entities.map.toArray().map(([id, entity]: [EntityId, any]) => [id, entity[prop]] as [EntityId, any]))
-);
-
-export const storeEntity = <T extends Entity>(entity: T) => (entities: Entities): [Entities, T] => ( isNil(entity.id) ? [
-    {
-        ...entities,
-        lastEntityId: nextEntityId(entities.lastEntityId),
-        map: entities.map.set(nextEntityId(entities.lastEntityId), {...entity, id: nextEntityId(entities.lastEntityId)}),
-    }, {
-        ...entity,
-        id: nextEntityId(entities.lastEntityId)
+export const storeEntity = <T extends Entity>(entity: T) => (entities: Entities): Entities => {
+    if (isNil(entity.id)) {
+        entities = nextEntityId(entities);
+        entity = {...entity, id: entities.lastEntityId};
     }
-] : [
-    {
+    return {
         ...entities,
         map: entities.map.set(entity.id, entity),
-    }, entity
-]);
+        byTrait: storeEntityToTraitMap(entity, entities.byTrait)
+    };
+};
+    
 
-export const storeEntityH = <T extends Entity>(entity: T) => pipe<Entities, [Entities, T], Entities>(storeEntity(entity), head);
+const storeEntityToTraitMap = (entity: Entity, byTrait: ByTraitMap): ByTraitMap => entity.traits.reduce((byTrait: ByTraitMap, trait: string) => ({
+    ...byTrait,
+    [trait]: byTrait[trait].add(entity.id)
+}), byTrait);
 
 export const ENTITY_ADDED = "EntityAdded";
 
@@ -69,9 +61,15 @@ export const updateEntity = <T extends Entity<unknown>>(entityId: EntityId, upda
     map: entities.map.update(entityId, updater)
 });
 
-export const mapEntities = <T extends Entity<unknown>>(mapFunction: (entity: T) => T) => (entities: Entities): Entities => ({
-    ...entities,
-    map: entities.map.map(mapFunction),
-});
+export const filterEntities = (filterFn: (entity: Entity) => boolean, entities: Entities): Entity[] => (
+    entities.map.filter(filterFn).valueSeq().toArray()
+);
 
-const nextEntityId = (entityId: EntityId): EntityId => entityId + 1;
+export const mapEntitiesWithTrait = <T extends Entity<unknown>>(trait: string, mapFunction: (entity: T) => T) => (entities: Entities): Entities => (
+    entities.byTrait[trait].reduce((entities: Entities, entityId: EntityId) => updateEntity(entityId, mapFunction, entities), entities)
+);
+
+export const nextEntityId = (entities: Entities): Entities => ({
+    ...entities,
+    lastEntityId: (entities.lastEntityId + 1) as EntityId
+});

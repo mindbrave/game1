@@ -1,64 +1,67 @@
 
-import { pipe as pipeInline } from "remeda";
+import { head, pipe, prop } from "ramda";
 
-import { createCharacter } from "./character";
+import { createCharacter, isCharacter } from "./character";
 import { Meters } from "./gamda/physics/units";
-import { Soccer } from "./soccer";
-import { GameEvents } from "./gamda/game";
-import { storeEntityH } from "./gamda/entities";
+import { Soccer, selectCharacter, addEntities } from "./soccer";
+import { GameEvents, pipeWithEvents } from "./gamda/game";
+import { filterEntities, Entities } from "./gamda/entities";
 import { runRenderLoop } from "./view";
+import { createParallelogramWall } from "./wall";
+import { vec, Vec } from "./gamda/vectors";
 
 export const startGame = (game: Soccer): [Soccer, GameEvents] => {
-    const entities = pipeInline(
-        game.entities,
-        storeEntityH(createCharacter({
-            x: 0 as Meters,
-            y: 1.0 as Meters,
-            z: 0 as Meters,
-        })),
-        storeEntityH(createCharacter({
-            x: 2 as Meters,
-            y: 1.0 as Meters,
-            z: 0 as Meters,
-        })),
-        storeEntityH(createCharacter({
-            x: 4 as Meters,
-            y: 1.0 as Meters,
-            z: 0 as Meters,
-        })),
-        storeEntityH(createCharacter({
-            x: 6 as Meters,
-            y: 1.0 as Meters,
-            z: 0 as Meters,
-        })),
-        storeEntityH(createCharacter({
-            x: 8 as Meters,
-            y: 1.0 as Meters,
-            z: 0 as Meters,
-        }))
+    const character = createCharacter({
+        x: 0 as Meters,
+        y: 3.0 as Meters,
+        z: 0 as Meters,
+    });
+    const ground = createParallelogramWall(
+        vec(-30, 0, -30) as Vec<Meters>,
+        vec(-30, 0, 30) as Vec<Meters>,
+        vec(30, 0, 30) as Vec<Meters>,
     );
-    const events = [{
-        type: "EntityAdded",
-        entityId: 1,
-    }, {
-        type: "EntityAdded",
-        entityId: 2,
-    }, {
-        type: "EntityAdded",
-        entityId: 3,
-    }, {
-        type: "EntityAdded",
-        entityId: 4,
-    }, {
-        type: "EntityAdded",
-        entityId: 5,
-    }];
-    return [
-        {
-            ...game,
-            view: runRenderLoop(game.view),
-            entities,
-        },
-        events
-    ];
+    const roof = createParallelogramWall(
+        vec(30, 30, 30) as Vec<Meters>,
+        vec(-30, 30, 30) as Vec<Meters>,
+        vec(-30, 30, -30) as Vec<Meters>,
+    );
+    const westWall = createParallelogramWall(
+        vec(-30, 0, -30) as Vec<Meters>,
+        vec(-30, 30, -30) as Vec<Meters>,
+        vec(-30, 30, 30) as Vec<Meters>,
+    );
+    const northWall = createParallelogramWall(
+        vec(-30, 0, 30) as Vec<Meters>,
+        vec(-30, 30, 30) as Vec<Meters>,
+        vec(30, 30, 30) as Vec<Meters>,
+    );
+    const eastWall = createParallelogramWall(
+        vec(30, 0, 30) as Vec<Meters>,
+        vec(30, 30, 30) as Vec<Meters>,
+        vec(30, 30, -30) as Vec<Meters>,
+    );
+    const southWall = createParallelogramWall(
+        vec(30, 0, -30) as Vec<Meters>,
+        vec(30, 30, -30) as Vec<Meters>,
+        vec(-30, 30, -30) as Vec<Meters>,
+    );
+    return pipeWithEvents(
+        game,
+        addEntities([
+            character,
+            ground,
+            roof,
+            westWall,
+            northWall,
+            eastWall,
+            southWall
+        ]),
+        renderGame,
+        selectFirstCharacter
+    );
 };
+
+export const renderGame = (game: Soccer): [Soccer, GameEvents] => [({...game, view: runRenderLoop(game.view)}), []];
+
+const selectFirstCharacter = (game: Soccer): [Soccer, GameEvents] => selectCharacter(head(filterEntities(isCharacter, game.entities)), game);

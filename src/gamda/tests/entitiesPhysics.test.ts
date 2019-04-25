@@ -5,7 +5,7 @@ import { expect } from "chai";
 import * as sinon from "sinon";
 
 import { vec, Vec, zeroVector } from "../vectors";
-import { entitiesList, Entity, storeEntityH, Entities } from "../entities";
+import { entitiesList, Entity, storeEntity } from "../entities";
 import { thatIsPhysical, givenEntity, thatOnCollisionWithEntity, emptyEntities, withBody, thatCollidesWithEntities, thatDoesNotCollideWithEntities } from "./fixtures/entities";
 import { Physical, bounce, moveEntitiesWithCollisions, block, OnCollision } from "../entitiesPhysics";
 import { sphereShaped, atPosition, withVelocity } from "./fixtures/body";
@@ -55,7 +55,7 @@ describe("test collision effects applying", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             0.51 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(entityA),  storeEntityH(entityB))
+            pipeInline(emptyEntities(), storeEntity(entityA),  storeEntity(entityB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -90,7 +90,7 @@ describe("test collision effects applying", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             0.51 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(entityA),  storeEntityH(entityB))
+            pipeInline(emptyEntities(), storeEntity(entityA),  storeEntity(entityB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -125,7 +125,7 @@ describe("test collision effects applying", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             0.51 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(entityA),  storeEntityH(entityB))
+            pipeInline(emptyEntities(), storeEntity(entityA),  storeEntity(entityB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -158,7 +158,7 @@ describe("test collision effects applying", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             0.51 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(entityA),  storeEntityH(entityB))
+            pipeInline(emptyEntities(), storeEntity(entityA),  storeEntity(entityB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -189,7 +189,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             4.51 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB)),
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB)),
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -216,7 +216,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             4.5 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB)),
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB)),
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -243,7 +243,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             3.01 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB))
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -270,7 +270,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             3.01 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB))
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB))
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -304,7 +304,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             5.00 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB),  storeEntityH(ballC))
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB),  storeEntity(ballC))
         );
 
         const [resolvedBallA, resolvedBallB, resolvedBallC] = entitiesList(entities) as Entity<Physical>[];
@@ -332,7 +332,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             1.01 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB)),
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB)),
         );
 
         const [resolvedBallA, resolvedBallB] = entitiesList(entities) as Entity<Physical>[];
@@ -366,7 +366,7 @@ describe("test moving, bouncing entities with collisions", () => {
         const [entities, _] = moveEntitiesWithCollisions(
             4.01 as Seconds,
             [],
-            pipeInline(emptyEntities(), storeEntityH(ballA),  storeEntityH(ballB),  storeEntityH(ballC))
+            pipeInline(emptyEntities(), storeEntity(ballA),  storeEntity(ballB),  storeEntity(ballC))
         );
 
         const [resolvedBallA, resolvedBallB, resolvedBallC] = entitiesList(entities) as Entity<Physical>[];

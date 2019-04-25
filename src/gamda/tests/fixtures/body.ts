@@ -3,8 +3,10 @@ import { Vec, vec } from "../../vectors";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "../../physics/units";
 import { ShapeType, Sphere, Triangle } from "../../physics/shape";
 import { Body, BodyPart } from "../../physics/body";
+import { Scalar } from "uom-ts";
 
 export const givenBody = (): Body => ({
+    doesGravityAppliesToThisBody: false,
     position: vec(0, 0, 0) as Vec<Meters>,
     velocity: vec(0, 0, 0) as Vec<MetersPerSecond>,
     dampening: 0 as MetersPerSquaredSecond,
@@ -16,6 +18,7 @@ export const givenBody = (): Body => ({
         },
     }],
     mass: 1.0 as Kilograms,
+    elasticity: 1.0 as Scalar,
 });
 
 export const atPosition = (position: Vec<Meters>) => (body: Body): Body => ({

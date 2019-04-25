@@ -156,6 +156,29 @@ describe("can tune acceleration so that it won't exceed given velocity", () => {
             z: 0 as MetersPerSquaredSecond,
         });
     });
+
+    test("acceleration is tuned down to zero because velocity is already over maximum", () => {
+        const acceleration = tuneAccelerationToNotExceedGivenVelocity(
+            1.0 as MetersPerSecond,
+            1.0 as Seconds,
+            {
+                x: 2.0 as MetersPerSecond,
+                y: 0 as MetersPerSecond,
+                z: 0 as MetersPerSecond,
+            },
+            {
+                x: 1.0 as MetersPerSquaredSecond,
+                y: 0 as MetersPerSquaredSecond,
+                z: 0 as MetersPerSquaredSecond,
+            },
+        );
+
+        assert.deepEqual(acceleration, {
+            x: 0 as MetersPerSquaredSecond,
+            y: 0 as MetersPerSquaredSecond,
+            z: 0 as MetersPerSquaredSecond,
+        });
+    });
 });
 
 describe("dampening is decreasing velocity of body during time until it stopes", () => {

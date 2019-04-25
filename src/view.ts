@@ -1,27 +1,31 @@
 
 import  { Map } from "immutable";
-import { curry, isNil } from "ramda";
+import { isNil } from "ramda";
 import { 
     Engine, Scene, Vector3, MeshBuilder, DirectionalLight, Mesh, ArcRotateCamera,
     ShadowGenerator,
-    Camera
  } from "babylonjs";
 import "babylonjs-materials";
 
-import { Vec, vecToArray, Radians } from "./gamda/vectors";
+import { Vec, vecToArray, Radians, normalizeVector } from "./gamda/vectors";
 import { Entity, EntityId, getEntity, EntityAdded } from "./gamda/entities";
 import { Soccer } from "./soccer";
 import { Meters } from "./gamda/physics/units";
-import { Body } from "./gamda/physics/body";
-import { Sphere } from "./gamda/physics/shape";
+import { Body, BodyPart } from "./gamda/physics/body";
+import { Sphere, Triangle } from "./gamda/physics/shape";
 import { Physical } from "./gamda/entitiesPhysics";
 import { GameEvents } from "./gamda/game";
+import { Character, CharacterSelected } from "./character";
+import { Wall } from "./wall";
+import { flatten } from "remeda";
+import { Scalar } from "uom-ts";
 
 export interface View {
     engine: Engine;
     scene: Scene;
     entitiesMesh: Map<EntityId, Mesh>;
     shadowGenerator: ShadowGenerator;
+    camera: ArcRotateCamera;
 }
 
 export const createView = (): View => {
@@ -30,12 +34,12 @@ export const createView = (): View => {
 
     const scene = new Scene(engine);
 
-    const ground = Mesh.CreateGround("ground1", 100 as Meters, 100 as Meters, 10, scene);
-    ground.receiveShadows = true;
+    //const ground = Mesh.CreateGround("ground1", 100 as Meters, 100 as Meters, 10, scene);
+    //ground.receiveShadows = true;
 
-    const light = new DirectionalLight("light1", new Vector3(100, -200, 20), scene);
+    const light = new DirectionalLight("light1", new Vector3(100, -200, 100), scene);
     const shadowGenerator = new ShadowGenerator(1024, light);
-    shadowGenerator.useBlurExponentialShadowMap = true;
+    shadowGenerator.useBlurExponentialShadowMap = false;
 
     const camera = createCamera(scene);
     camera.attachControl(canvas, true);
@@ -46,20 +50,21 @@ export const createView = (): View => {
         engine,
         scene,
         entitiesMesh,
-        shadowGenerator
+        shadowGenerator,
+        camera
     };
 };
 
-export const createCamera = (scene: Scene): Camera => {
+export const createCamera = (scene: Scene): ArcRotateCamera => {
     const camera = new ArcRotateCamera("Camera", 0 as Radians, Math.PI / 4 as Radians, 100.0 as Meters, Vector3.Zero(), scene);
     camera.angularSensibilityX = 5000.0;
     camera.angularSensibilityY = 5000.0;
-    camera.lowerAlphaLimit = -Math.PI/2 as Radians;
-    camera.upperAlphaLimit = -Math.PI/2 as Radians;
+    camera.lowerAlphaLimit = -Math.PI as Radians;
+    camera.upperAlphaLimit = +Math.PI as Radians;
     camera.lowerBetaLimit = 0 as Radians;
-    camera.upperBetaLimit = Math.PI / 4 as Radians;
-    camera.lowerRadiusLimit = 100.0 as Meters;
-    camera.upperRadiusLimit = 180.0 as Meters;
+    camera.upperBetaLimit = Math.PI / 2 as Radians;
+    camera.lowerRadiusLimit = 20.0 as Meters;
+    camera.upperRadiusLimit = 220.0 as Meters;
     return camera;
 };
 
@@ -80,15 +85,55 @@ export const runRenderLoop = (view: View): View => {
     return view;
 };
 
-export const createCharacterView = curry((scene: Scene, character: Entity<Physical>): Mesh => {
-    const body = character.body as Body<Sphere>;
-    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: body.shape.radius * 2, segments: 12 }, scene);
+const createCharacterView = (scene: Scene, character: Character): Mesh => {
+    const body = character.body;
+    const sphereBody = body.parts[0] as BodyPart<Sphere>;
+    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: sphereBody.shape.radius * 2, segments: 12 }, scene);
     sphere.setAbsolutePosition(vecToBabylonVec(body.position));
     return sphere;
-});
+};
+
+const createWallView = (scene: Scene, wall: Wall): Mesh => {
+    const triangle1 = wall.body.parts[0] as BodyPart<Triangle>;
+    const triangle2 = wall.body.parts[1] as BodyPart<Triangle>;
+    const mesh = new Mesh("wall", scene);
+    mesh.receiveShadows = true;
+    const positions = flatten(
+        [triangle1.shape.p1, triangle2.shape.p3, triangle1.shape.p3, triangle1.shape.p2].map(vecToArray)
+    );
+    const indices = [0, 1, 2, 0, 2, 3];    
+
+    const normals: number[] = [];
+
+    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+    const vertexData = new BABYLON.VertexData();
+
+    vertexData.positions = positions;
+    vertexData.indices = indices;
+    vertexData.normals = normals;
+    vertexData.applyToMesh(mesh);
+
+    mesh.setAbsolutePosition(vecToBabylonVec(wall.body.position));
+    return mesh;
+}
 
 export const addEntityMeshToView = (entity: Entity<Physical & unknown>, view: View): View => {
-    const mesh = createCharacterView(view.scene, entity);
+    let mesh;
+    switch (entity.type) {
+        case 'character':
+            mesh = createCharacterView(view.scene, entity as Character);
+            break;
+        case 'projectile':
+            mesh = createCharacterView(view.scene, entity as Character);
+            break;
+        case 'wall':
+            mesh = createWallView(view.scene, entity as Wall);
+            break;
+        default:
+            throw new Error("Unknown entity type");
+    }
+    
     view.shadowGenerator.addShadowCaster(mesh);
     return {
         ...view,
@@ -104,10 +149,24 @@ export const getPointerCurrent3dPosition = (view: View): Vec<Meters> | null => {
     return babylonVectorToVec(pickInfo.pickedPoint);
 };
 
+export const getCameraDirection = (view: View): Vec<Scalar> => {
+    return normalizeVector(babylonVectorToVec(view.camera.target.subtract(view.camera.position)));
+}
+
+export const changeCameraEntityTarget = (entity: Entity<Physical>, view: View): View => {
+    view.camera.setTarget(view.entitiesMesh.get(entity.id!)!);
+    return view;
+};
+
 const vecToBabylonVec = (vec: Vec): Vector3 => Vector3.FromArray(vecToArray(vec));
 const babylonVectorToVec = (vec: Vector3): Vec<Meters> => ({x: vec.x as Meters, y: vec.y as Meters, z: vec.z as Meters});
 
 export const addEntityView = (event: EntityAdded) => (game: Soccer): [Soccer, GameEvents] => [{
     ...game,
     view: addEntityMeshToView(getEntity(event.entityId, game.entities) as Entity<Physical>, game.view)
+}, []];
+
+export const changeViewCameraTarget = (event: CharacterSelected) => (game: Soccer): [Soccer, GameEvents] => [{
+    ...game,
+    view: changeCameraEntityTarget(getEntity(event.characterId, game.entities) as Entity<Physical>, game.view),
 }, []];

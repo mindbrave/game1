@@ -3,7 +3,7 @@ import * as math from "mathjs"
 import { head, sortBy, prop, isEmpty } from "ramda";
 
 import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, normalizeVector, dotProduct, isZeroVector, Vec, crossProduct, addVectors, vecToArray, vecFromArray, negateVector } from "../../vectors";
-import { add, sub, lt, pow2, lte, gte, sqrt2, div, mul, AnyUnit, negate, MultiplyUnits } from "uom-ts";
+import { add, sub, lt, pow2, lte, gte, gt, sqrt2, div, mul, AnyUnit, negate, MultiplyUnits, Scalar } from "uom-ts";
 import { Seconds, Meters, SquaredMeters, MetersPerSecond } from "../units";
 import { Sphere, Triangle } from "../shape";
 import { Body, isSphere, isTriangle, BodyPart } from "../body";
@@ -37,7 +37,6 @@ export const collisionBetweenBodies = (body1: Body, body2: Body, duration: Secon
             if (collisionData === null) {
                 continue;
             }
-
             collisions.push({...collisionData, betweenBodyParts: [i, k]});
         }
     }
@@ -103,15 +102,24 @@ export const incomingCollisionBetweenSpheres = (body1: Body, part1: BodyPart<Sph
 };
 
 export const incomingCollisionBetweenSphereAndTriangle = (body1: Body, part1: BodyPart<Sphere>, body2: Body, part2: BodyPart<Triangle>, duration: Seconds): CollisionData | null => {
-    const spherePosition = addVectors(body1.position, part1.relativePosition);
-    const trianglePosition = addVectors(body2.position, part2.relativePosition);
+    const [movingBody, staticBody] = considerSecondBodyStationary(body1, body2);
+    if (isZeroVector(movingBody.velocity)) {
+        return null;
+    }
+    const trianglePosition = addVectors(staticBody.position, part2.relativePosition);
     const p1 = addVectors(trianglePosition, part2.shape.p1);
     const p2 = addVectors(trianglePosition, part2.shape.p2);
     const p3 = addVectors(trianglePosition, part2.shape.p3);
     const AB = subtractVectors(p2, p1);
     const AC = subtractVectors(p3, p1);
     const normal = normalizeVector(crossProduct(AB, AC));
-    const translation: Vec<Meters> = scaleVector(duration, body1.velocity);
+    const translation: Vec<Meters> = scaleVector(duration, movingBody.velocity);
+    const normalizedTranslation = normalizeVector(translation);
+    const D = dotProduct(normalizedTranslation, negateVector(normal));
+    if (lte(D, 0 as Scalar)) {
+        return null;
+    }
+    const spherePosition = addVectors(movingBody.position, part1.relativePosition);
     const sphereContactPointWithPlane = subtractVectors(spherePosition, scaleVector(part1.shape.radius, normal));
     const sphereContactPointRelative = subtractVectors(sphereContactPointWithPlane, spherePosition);
     const destinationPointOfSphere = addVectors(spherePosition, translation);
@@ -135,10 +143,10 @@ export const incomingCollisionBetweenSphereAndTriangle = (body1: Body, part1: Bo
     const gamma = (d11 * d20 - d01 * d21) / denom;
     const beta = (d00 * d21 - d01 * d20) / denom;
     const alpha = 1.0 - gamma - beta;
-
     if (!((0 <= alpha && alpha <= 1) && (0 <= beta && beta <= 1) && (0 <= gamma && gamma <= 1))) {
         return null;
     }
+
     return {
         timeToImpact: div(mul(sphereContactPointToIntersectionPointLength, duration), translationLength),
         contactPoints: [sphereContactPointRelative, subtractVectors(intersectionPoint, trianglePosition)]

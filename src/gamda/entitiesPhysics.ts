@@ -1,14 +1,14 @@
 
 import { isEmpty, head, sortBy, isNil, curry, evolve, concat, map } from "ramda";
 
-import { EntityKind, Entity, Entities, setEntity, mapEntities, updateEntity, entitiesList, setManyEntities, EntityId, getEntity } from "./entities";
+import { EntityKind, Entity, Entities, setEntity, mapEntitiesWithTrait, updateEntity, entitiesList, setManyEntities, EntityId, getEntity } from "./entities";
 import { Map } from "immutable";
 import { sphereBounceOfSphere, sphereBounceOfStaticTriangle } from "./physics/collisions/resolve";
-import { Seconds } from "./physics/units";
+import { Seconds, MetersPerSquaredSecond } from "./physics/units";
 import { Body, isSphere, isTriangle } from "./physics/body";
 import { Maybe } from "./maybe";
 import { sub } from "uom-ts";
-import { move, applyDampening, setZeroVelocity } from "./physics/motion";
+import { move, applyDampening, setZeroVelocity, applyGravity } from "./physics/motion";
 import { GameEvents, pipeWithEvents } from "./game";
 import { collisionBetweenBodies } from "./physics/collisions/detection";
 import { BodyCollision } from "./physics/collisions/collision";
@@ -135,12 +135,34 @@ export const bounce: OnCollision = (collision, entityA, entityB, entities) => {
     entityA = isSphere(partA) ?
         (
             isSphere(partB) ? ({...entityA, body: sphereBounceOfSphere(entityA.body, partA, entityB.body, partB)}) :
-            isTriangle(partB) ? ({...entityA, body: sphereBounceOfStaticTriangle(entityA.body, partA, entityB.body, partB)}) :
             entityA
-        ) : entityA;
+        ) : isTriangle(partA) ?
+        (
+            entityA
+        )
+        : entityA;
     return [setEntity(entityA, entities), []];
 };
 
-export const dampenEntitiesVelocity = (delta: Seconds, entities: Entities) => mapEntities<Entity<Physical>>(evolve({
+export const bounceAgainstStatic: OnCollision = (collision, entityA, entityB, entities) => {
+    const partA = entityA.body.parts[collision.bodyCollision.betweenBodyParts[0]];
+    const partB = entityB.body.parts[collision.bodyCollision.betweenBodyParts[1]];
+    entityA = isSphere(partA) ?
+        (
+            isTriangle(partB) ? ({...entityA, body: sphereBounceOfStaticTriangle(entityA.body, partA, entityB.body, partB)}) :
+            entityA
+        ) : isTriangle(partA) ?
+        (
+            entityA
+        )
+        : entityA;
+    return [setEntity(entityA, entities), []];
+};
+
+export const dampenEntitiesVelocity = (delta: Seconds) => (entities: Entities) => mapEntitiesWithTrait<Entity<Physical>>('physical', evolve({
     body: applyDampening(delta),
+}))(entities);
+
+export const applyGravityToEntities = (delta: Seconds, gravity: MetersPerSquaredSecond) => (entities: Entities) => mapEntitiesWithTrait<Entity<Physical>>('physical', evolve({
+    body: applyGravity(delta, gravity),
 }))(entities);

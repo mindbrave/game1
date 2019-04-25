@@ -2,9 +2,9 @@ import { Vec } from "../vectors";
 import { Meters } from "./units";
 
 export enum ShapeType {
-    Segment,
-    Sphere,
-    Triangle
+    Segment = "Segment",
+    Sphere = "Sphere",
+    Triangle = "Triangle",
 }
 
 export type Segment = {

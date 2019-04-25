@@ -3,16 +3,16 @@ import { isNil } from "ramda";
 import { add, Scalar } from "uom-ts";
 import { Map } from "immutable";
 
-import { Vec, normalizeVector, subtractVectors, addVectors, scaleVector } from "./gamda/vectors";
-import { Soccer } from "./soccer";
+import { Vec, normalizeVector, subtractVectors, addVectors, scaleVector, vec } from "./gamda/vectors";
+import { Soccer, addEntities } from "./soccer";
 import { GameEvents } from "./gamda/game";
 import { getPointerCurrent3dPosition } from "./view";
 import { Physical, alwaysCollide, bounce, doesntOverlap, block } from "./gamda/entitiesPhysics";
 import { WithBehavior } from "./gamda/movingBehavior";
-import { getEntity, storeEntity, Entity } from "./gamda/entities";
+import { getEntity, storeEntity, Entity, nextEntityId, EntityId } from "./gamda/entities";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "./gamda/physics/units";
 import { ShapeType, Sphere } from "./gamda/physics/shape";
-import { Body } from "./gamda/physics/body";
+import { Body, BodyPart } from "./gamda/physics/body";
 
 export type Projectile = Entity<Physical & WithBehavior>;
 
@@ -24,39 +24,39 @@ export const shootBallWithSelectedCharacter = (game: Soccer): [Soccer, GameEvent
         return [game, []];
     }
     const selectedEntity = getEntity(game.selectedCharacterId, game.entities) as Entity<Physical>;
-    const selectedEntityBody = selectedEntity.body as Body<Sphere>;
+    const selectedEntityBody = selectedEntity.body;
+    const selectedSphere = selectedEntityBody.parts[0] as BodyPart<Sphere>;
     const shootDirection = normalizeVector(subtractVectors({...targetPosition, y: selectedEntityBody.position.y}, selectedEntityBody.position));
     const distanceBetweenBallAndEntity = 0.1 as Meters;
     const projectileStartPosition = addVectors(
         selectedEntityBody.position,
-        scaleVector(add(PROJECTILE_RADIUS, add(distanceBetweenBallAndEntity, selectedEntityBody.shape.radius)), shootDirection)
+        scaleVector(add(PROJECTILE_RADIUS, add(distanceBetweenBallAndEntity, selectedSphere.shape.radius)), shootDirection)
     );
-    const [entities, projectile] = storeEntity(createProjectile(projectileStartPosition, shootDirection))(game.entities);
-    const entityAdded = {
-        type: "EntityAdded",
-        entityId: projectile.id,
-    };
-    return [
-        {
-            ...game,
-            entities
-        },
-        [entityAdded]
-    ];
+    let entities = nextEntityId(game.entities);
+    const projectile = createProjectile(entities.lastEntityId, projectileStartPosition, shootDirection);
+    return addEntities([projectile])(game);
 };
 
-const createProjectile = (position: Vec<Meters>, direction: Vec<Scalar>): Projectile => ({
-    id: null,
+const createProjectile = (id: EntityId, position: Vec<Meters>, direction: Vec<Scalar>): Projectile => ({
+    id,
     type: 'projectile',
+    traits: ['physical', 'withBehavior'],
     body: {
+        doesGravityAppliesToThisBody: true,
         position,
         velocity: scaleVector(15.0 as MetersPerSecond, direction),
         dampening: 5.0 as MetersPerSquaredSecond,
         mass: 999999 as Kilograms,
-        shape: {
-            type: ShapeType.Sphere,
-            radius: PROJECTILE_RADIUS,
-        }
+        parts: [
+            {
+                shape: {
+                    type: ShapeType.Sphere,
+                    radius: PROJECTILE_RADIUS,
+                },
+                relativePosition: vec(0, 0, 0) as Vec<Meters>
+            }
+        ],
+        elasticity: 1.0 as Scalar,
     },
     movementBehavior: {
         acceleration: 0.0 as MetersPerSquaredSecond,

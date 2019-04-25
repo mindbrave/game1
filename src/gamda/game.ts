@@ -2,9 +2,9 @@ import { Observable, Subject } from "rxjs";
 import { scan } from "rxjs/operators";
 import { concat } from "ramda";
 
-export interface GameEvent {
+export type GameEvent = Readonly<{
     type: string;
-} 
+}>;
 export type GameEvents = GameEvent[];
 export type GameCommand<T> = (game: T) => [T, GameEvents];
 

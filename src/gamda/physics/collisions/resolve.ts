@@ -31,9 +31,8 @@ export const sphereBounceOfStaticTriangle = (body1: Body, part1: BodyPart<Sphere
         mul(2 as Scalar, div(dotProduct(triangleNormal, body1.velocity), dotProduct(triangleNormal, triangleNormal))),
         triangleNormal
     );
-    
     return {
         ...body1,
-        velocity: subtractVectors(body1.velocity, reflectedVelocity),
+        velocity: subtractVectors(body1.velocity, scaleVector(mul(body1.elasticity, body2.elasticity), reflectedVelocity)),
     };
 };
