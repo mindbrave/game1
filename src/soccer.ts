@@ -46,6 +46,6 @@ export const updateGame = (delta: Seconds) => (game: Soccer): [Soccer, GameEvent
 export const addEntities = (entitiesToAdd: Entity<unknown>[]) => (game: Soccer): [Soccer, EntityAdded[]] => {
     return entitiesToAdd.reduce(([game, events]: [Soccer, EntityAdded[]], entity: Entity<unknown>): [Soccer, EntityAdded[]] => {
         let entities = storeEntity(entity)(game.entities);
-        return [{...game, entities}, append<EntityAdded>({type: ENTITY_ADDED, entityId: entity.id!}, events)];
+        return [{...game, entities}, append<EntityAdded>({type: ENTITY_ADDED, entityId: entities.lastEntityId}, events)];
     }, [game, []])
 };

@@ -4,6 +4,10 @@ import { isNil } from "ramda";
 import { 
     Engine, Scene, Vector3, MeshBuilder, DirectionalLight, Mesh, ArcRotateCamera,
     ShadowGenerator,
+    Material,
+    Color3,
+    StandardMaterial,
+    PointLight,
  } from "babylonjs";
 import "babylonjs-materials";
 
@@ -26,6 +30,9 @@ export interface View {
     entitiesMesh: Map<EntityId, Mesh>;
     shadowGenerator: ShadowGenerator;
     camera: ArcRotateCamera;
+    materials: {
+        [name:string]: Material
+    }
 }
 
 export const createView = (): View => {
@@ -37,7 +44,7 @@ export const createView = (): View => {
     //const ground = Mesh.CreateGround("ground1", 100 as Meters, 100 as Meters, 10, scene);
     //ground.receiveShadows = true;
 
-    const light = new DirectionalLight("light1", new Vector3(100, -200, 100), scene);
+    const light = new PointLight("pointLight", new Vector3(10, 1, 10), scene);
     const shadowGenerator = new ShadowGenerator(1024, light);
     shadowGenerator.useBlurExponentialShadowMap = false;
 
@@ -46,12 +53,18 @@ export const createView = (): View => {
 
     const entitiesMesh = Map<EntityId, Mesh>();
 
+    const wallMaterial = new StandardMaterial("WallMaterial", scene);
+    wallMaterial.diffuseColor = new Color3(1, 0, 1);
+
     return {
         engine,
         scene,
         entitiesMesh,
         shadowGenerator,
-        camera
+        camera,
+        materials: {
+            'wall': wallMaterial,
+        }
     };
 };
 
@@ -85,18 +98,19 @@ export const runRenderLoop = (view: View): View => {
     return view;
 };
 
-const createCharacterView = (scene: Scene, character: Character): Mesh => {
+const createCharacterView = (view: View, character: Character): Mesh => {
     const body = character.body;
     const sphereBody = body.parts[0] as BodyPart<Sphere>;
-    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: sphereBody.shape.radius * 2, segments: 12 }, scene);
+    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: sphereBody.shape.radius * 2, segments: 12 }, view.scene);
     sphere.setAbsolutePosition(vecToBabylonVec(body.position));
     return sphere;
 };
 
-const createWallView = (scene: Scene, wall: Wall): Mesh => {
+const createWallView = (view: View, wall: Wall): Mesh => {
     const triangle1 = wall.body.parts[0] as BodyPart<Triangle>;
     const triangle2 = wall.body.parts[1] as BodyPart<Triangle>;
-    const mesh = new Mesh("wall", scene);
+    const mesh = new Mesh("wall", view.scene);
+    mesh.material = view.materials["wall"];
     mesh.receiveShadows = true;
     const positions = flatten(
         [triangle1.shape.p1, triangle2.shape.p3, triangle1.shape.p3, triangle1.shape.p2].map(vecToArray)
@@ -122,13 +136,13 @@ export const addEntityMeshToView = (entity: Entity<Physical & unknown>, view: Vi
     let mesh;
     switch (entity.type) {
         case 'character':
-            mesh = createCharacterView(view.scene, entity as Character);
+            mesh = createCharacterView(view, entity as Character);
             break;
         case 'projectile':
-            mesh = createCharacterView(view.scene, entity as Character);
+            mesh = createCharacterView(view, entity as Character);
             break;
         case 'wall':
-            mesh = createWallView(view.scene, entity as Wall);
+            mesh = createWallView(view, entity as Wall);
             break;
         default:
             throw new Error("Unknown entity type");
